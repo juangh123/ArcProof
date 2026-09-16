@@ -12,11 +12,11 @@ ArcProof
 
 ## Repository
 
-[PUBLIC_REPOSITORY_URL]
+https://github.com/juangh123/ArcProof
 
 ## Builder profile
 
-[GITHUB_X_OR_FARCASTER_URL]
+https://github.com/juangh123
 
 ## Short description
 
