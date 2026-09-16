@@ -52,6 +52,21 @@ Confirm:
 - The public proof page links to the transaction.
 - Reusing the same transaction on another order is rejected.
 
+The repository includes two scripts for this gate:
+
+```bash
+ARC_NETWORK=mainnet \
+ARC_RECIPIENT_ADDRESS=0x... \
+PUBLIC_BASE_URL=https://your-railway-domain \
+pnpm preflight
+
+PUBLIC_BASE_URL=https://your-railway-domain pnpm smoke create
+PUBLIC_BASE_URL=https://your-railway-domain \
+pnpm smoke verify <ORDER_ID> <TRANSACTION_HASH>
+```
+
+`preflight` checks Chain ID, deployed system contracts, recipient balance, and the public health endpoint. `smoke` creates a real order and verifies the completed payment/result flow through the deployed API.
+
 ## 5. Verify the production environment
 
 Run:
@@ -90,7 +105,27 @@ Expected values:
 - Environment variables configured in the hosting provider, not committed.
 - No browser private keys and no server private key are required for the receiving path.
 
-## 7. Submission evidence
+## 7. Railway CLI
+
+After `railway login`, the deployment sequence is:
+
+```bash
+npx --yes @railway/cli login
+npx --yes @railway/cli init --name ArcProof
+npx --yes @railway/cli up --detach --yes
+npx --yes @railway/cli volume add --service ArcProof --mount-path /data
+npx --yes @railway/cli variable set \
+  ARC_NETWORK=mainnet \
+  ARC_PAYMENT_MODE=live \
+  ARC_RECIPIENT_ADDRESS=0x... \
+  ARC_QUOTE_PRICE_USDC=0.10 \
+  ARCPROOF_DATA_DIR=/data \
+  --service ArcProof
+```
+
+Redeploy once after setting the variables and attaching the volume. Keep one replica.
+
+## 8. Submission evidence
 
 Capture:
 

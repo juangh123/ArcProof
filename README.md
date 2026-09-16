@@ -127,6 +127,30 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
+Before a mainnet deployment, run:
+
+```bash
+ARC_NETWORK=mainnet \
+ARC_RECIPIENT_ADDRESS=0x... \
+PUBLIC_BASE_URL=https://your-railway-domain \
+pnpm preflight
+```
+
+PowerShell users can set the same values with `$env:ARC_NETWORK`, `$env:ARC_RECIPIENT_ADDRESS`, and `$env:PUBLIC_BASE_URL`.
+
+Create a public smoke-test order after deployment:
+
+```bash
+PUBLIC_BASE_URL=https://your-railway-domain pnpm smoke create
+```
+
+After paying in the browser wallet, verify and process the transaction:
+
+```bash
+PUBLIC_BASE_URL=https://your-railway-domain \
+pnpm smoke verify <ORDER_ID> <TRANSACTION_HASH>
+```
+
 The unit suite covers payment transaction uniqueness, failed-job retry, processing lease recovery, stale-order cleanup, rate limiting, file validation, the two-event Arc USDC model, quotation extraction, and monetary consistency.
 
 The browser suite covers the complete sample flow and public receipt on desktop and a 390px mobile viewport.
