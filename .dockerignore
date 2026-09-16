@@ -1,0 +1,10 @@
+.git
+.next
+.env*
+!.env.example
+data
+node_modules
+tsconfig.tsbuildinfo
+coverage
+playwright-report
+test-results
