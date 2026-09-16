@@ -38,6 +38,9 @@ jobs:
       - name: Production build
         run: pnpm build
 
+      - name: Build production container
+        run: docker build --tag arcproof:ci .
+
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
