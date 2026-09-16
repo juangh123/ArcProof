@@ -32,6 +32,16 @@ describe("extractTextFromFile", () => {
     );
   });
 
+  it("accepts a Markdown quotation", async () => {
+    const file = new File([SAMPLE_QUOTE_TEXT], "quote.md", {
+      type: "text/markdown",
+    });
+
+    await expect(extractTextFromFile(file)).resolves.toContain(
+      "NORTHSTAR INDUSTRIAL SUPPLY",
+    );
+  });
+
   it("rejects a file with a PDF extension but no PDF signature", async () => {
     const file = new File(["not a pdf"], "quote.pdf", {
       type: "application/pdf",
@@ -51,6 +61,16 @@ describe("extractTextFromFile", () => {
 
     await expect(extractTextFromFile(file)).rejects.toThrow(
       "contains binary data",
+    );
+  });
+
+  it("rejects a text file with a disallowed content type", async () => {
+    const file = new File([SAMPLE_QUOTE_TEXT], "quote.txt", {
+      type: "text/html",
+    });
+
+    await expect(extractTextFromFile(file)).rejects.toThrow(
+      "Only PDF, TXT, and Markdown",
     );
   });
 });

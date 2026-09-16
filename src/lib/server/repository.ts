@@ -326,7 +326,7 @@ export function releaseVerificationClaim(
 export function claimOrderForProcessing(orderId: string) {
   const timestamp = now();
   const leaseCutoff = new Date(Date.now() - 5 * 60_000).toISOString();
-  const result = getDatabase()
+  const row = getDatabase()
     .prepare(
       `UPDATE orders
        SET status = ?, processing_attempts = processing_attempts + 1,
@@ -339,27 +339,39 @@ export function claimOrderForProcessing(orderId: string) {
              status = 'processing'
              AND (processing_started_at IS NULL OR processing_started_at < ?)
            )
-         )`,
+         )
+       RETURNING processing_attempts`,
     )
-    .run("processing", timestamp, timestamp, orderId, leaseCutoff);
+    .get(
+      "processing",
+      timestamp,
+      timestamp,
+      orderId,
+      leaseCutoff,
+    ) as { processing_attempts: number } | undefined;
 
-  if (Number(result.changes) === 0) {
-    return false;
+  if (!row) {
+    return null;
   }
 
   addOrderEvent(orderId, "processing.started", {});
-  return true;
+  return Number(row.processing_attempts);
 }
 
-export function completeOrder(orderId: string, quote: QuoteResult) {
+export function completeOrder(
+  orderId: string,
+  quote: QuoteResult,
+  processingAttempt: number,
+) {
   const timestamp = now();
-  getDatabase()
+  const result = getDatabase()
     .prepare(
       `UPDATE orders
        SET status = ?, quote_result = ?, extraction_mode = ?,
            processed_at = ?, updated_at = ?, error_message = NULL,
            processing_started_at = NULL, source_text = ''
-       WHERE id = ?`,
+       WHERE id = ? AND status = 'processing'
+         AND processing_attempts = ?`,
     )
     .run(
       "completed",
@@ -368,18 +380,42 @@ export function completeOrder(orderId: string, quote: QuoteResult) {
       timestamp,
       timestamp,
       orderId,
+      processingAttempt,
     );
+
+  if (Number(result.changes) === 0) {
+    return false;
+  }
 
   addOrderEvent(orderId, "processing.completed", {
     lineItems: quote.lineItems.length,
     validationIssues: quote.validationIssues.length,
     extractionMode: quote.extractionMode,
   });
+  return true;
 }
 
-export function failOrder(orderId: string, message: string) {
-  setOrderStatus(orderId, "failed", message);
+export function failOrder(
+  orderId: string,
+  message: string,
+  processingAttempt: number,
+) {
+  const result = getDatabase()
+    .prepare(
+      `UPDATE orders
+       SET status = 'failed', error_message = ?, processing_started_at = NULL,
+           updated_at = ?
+       WHERE id = ? AND status = 'processing'
+         AND processing_attempts = ?`,
+    )
+    .run(message, now(), orderId, processingAttempt);
+
+  if (Number(result.changes) === 0) {
+    return false;
+  }
+
   addOrderEvent(orderId, "processing.failed", { message });
+  return true;
 }
 
 export function getStatusLabel(status: OrderStatus) {

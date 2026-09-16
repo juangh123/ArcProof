@@ -151,7 +151,7 @@ PUBLIC_BASE_URL=https://your-railway-domain \
 pnpm smoke verify <ORDER_ID> <TRANSACTION_HASH>
 ```
 
-The unit suite covers payment transaction uniqueness, failed-job retry, processing lease recovery, stale-order cleanup, rate limiting, file validation, the two-event Arc USDC model, quotation extraction, and monetary consistency.
+The unit suite covers payment transaction uniqueness, failed-job retry, processing lease fencing, stale-order cleanup, rate limiting, file validation, wrong chain/Memo/recipient/amount cases, duplicate Arc event rejection, the two-event Arc USDC model, quotation extraction, and monetary consistency.
 
 The browser suite covers the complete sample flow and public receipt on desktop and a 390px mobile viewport.
 

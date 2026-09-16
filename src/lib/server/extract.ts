@@ -257,10 +257,17 @@ export async function extractTextFromFile(file: File) {
   const lowerName = file.name.toLowerCase();
   const isPdf =
     file.type === "application/pdf" || lowerName.endsWith(".pdf");
+  const hasTextExtension =
+    lowerName.endsWith(".txt") || lowerName.endsWith(".md");
+  const hasTextCompatibleType = new Set([
+    "",
+    "application/octet-stream",
+    "text/plain",
+    "text/markdown",
+    "text/x-markdown",
+  ]).has(file.type);
   const isText =
-    file.type.startsWith("text/") ||
-    lowerName.endsWith(".txt") ||
-    lowerName.endsWith(".md");
+    hasTextExtension && hasTextCompatibleType;
   let text = "";
 
   if (isPdf) {

@@ -65,7 +65,7 @@ awaiting_payment
     +--> payment_rejected
 ```
 
-`processing` is claimed with a conditional SQL update. Repeating the processing request cannot start a second fulfillment once the order has moved to `processing` or `completed`. A failed job can be claimed again without another payment, and a processing job can be reclaimed after its five-minute lease expires.
+`processing` is claimed with a conditional SQL update that increments an attempt number. Repeating the processing request cannot start a second fulfillment once the order has moved to `processing` or `completed`. A failed job can be claimed again without another payment, and a processing job can be reclaimed after its five-minute lease expires. Completion and failure updates are fenced by the attempt number, so an expired worker cannot overwrite the result of a newer claim.
 
 ## Reliability rules
 

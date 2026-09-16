@@ -12,6 +12,7 @@ import {
   completeOrder,
   createOrder,
   failOrder,
+  getOrderById,
   recordVerifiedPayment,
 } from "@/lib/server/repository";
 import { SAMPLE_QUOTE_TEXT } from "@/lib/server/sample";
@@ -108,10 +109,18 @@ describe("order repository", () => {
     const txHash = `0x${"4".repeat(64)}` as const;
 
     recordVerifiedPayment(order.id, proofFor(txHash, order));
-    expect(claimOrderForProcessing(order.id)).toBe(true);
-    failOrder(order.id, "Temporary parser failure");
-    expect(claimOrderForProcessing(order.id)).toBe(true);
-    completeOrder(order.id, extractQuoteHeuristically(order.sourceText));
+    const firstAttempt = claimOrderForProcessing(order.id);
+    expect(firstAttempt).toBe(1);
+    failOrder(order.id, "Temporary parser failure", firstAttempt!);
+    const retryAttempt = claimOrderForProcessing(order.id);
+    expect(retryAttempt).toBe(2);
+    expect(
+      completeOrder(
+        order.id,
+        extractQuoteHeuristically(order.sourceText),
+        retryAttempt!,
+      ),
+    ).toBe(true);
   });
 
   it("reclaims a processing job after its five-minute lease", () => {
@@ -122,11 +131,45 @@ describe("order repository", () => {
     const txHash = `0x${"5".repeat(64)}` as const;
 
     recordVerifiedPayment(order.id, proofFor(txHash, order));
-    expect(claimOrderForProcessing(order.id)).toBe(true);
-    expect(claimOrderForProcessing(order.id)).toBe(false);
+    expect(claimOrderForProcessing(order.id)).toBe(1);
+    expect(claimOrderForProcessing(order.id)).toBeNull();
 
     vi.setSystemTime(new Date("2026-09-17T00:06:00.000Z"));
-    expect(claimOrderForProcessing(order.id)).toBe(true);
+    expect(claimOrderForProcessing(order.id)).toBe(2);
+  });
+
+  it("does not allow an expired worker to overwrite a newer attempt", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-17T00:00:00.000Z"));
+
+    const order = createTestOrder();
+    const txHash = `0x${"6".repeat(64)}` as const;
+
+    recordVerifiedPayment(order.id, proofFor(txHash, order));
+    const expiredAttempt = claimOrderForProcessing(order.id);
+    expect(expiredAttempt).toBe(1);
+
+    vi.setSystemTime(new Date("2026-09-17T00:06:00.000Z"));
+    const currentAttempt = claimOrderForProcessing(order.id);
+    expect(currentAttempt).toBe(2);
+
+    expect(
+      completeOrder(
+        order.id,
+        extractQuoteHeuristically(order.sourceText),
+        expiredAttempt!,
+      ),
+    ).toBe(false);
+    expect(getOrderById(order.id)?.status).toBe("processing");
+
+    expect(
+      completeOrder(
+        order.id,
+        extractQuoteHeuristically(order.sourceText),
+        currentAttempt!,
+      ),
+    ).toBe(true);
+    expect(getOrderById(order.id)?.status).toBe("completed");
   });
 
   it("cleans up unpaid orders after 24 hours", () => {

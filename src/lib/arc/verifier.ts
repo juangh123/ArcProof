@@ -9,7 +9,7 @@ import {
   parseUnits,
   TransactionReceiptNotFoundError,
 } from "viem";
-import type { Address, Hex } from "viem";
+import type { Address, Hex, Log } from "viem";
 import { ARC_CONTRACTS, getArcRuntimeConfig } from "@/lib/arc/config";
 import { memoAbi, transferEventAbi } from "@/lib/arc/abi";
 import { classifyArcUsdcTransfers } from "@/lib/arc/events";
@@ -25,6 +25,21 @@ type VerifyInput = {
   expectedMemoId: Hex;
   expectedAmountUsdc: string;
   expectedRecipient: Address;
+};
+
+export type ArcPaymentArtifacts = {
+  transaction: {
+    chainId: number | null;
+    from: Address;
+    to: Address | null;
+    input: Hex;
+  };
+  receipt: {
+    status: "success" | "reverted";
+    blockNumber: bigint;
+    blockHash: Hex | null;
+    logs: Log[];
+  };
 };
 
 function createArcClient() {
@@ -56,55 +71,10 @@ function createArcClient() {
   };
 }
 
-function fixtureProof(
-  input: VerifyInput,
-): PaymentProof {
-  return {
-    txHash: input.txHash,
-    blockNumber: "123456",
-    blockHash: `0x${"1".repeat(64)}`,
-    payerAddress: "0x1111111111111111111111111111111111111111",
-    recipientAddress: input.expectedRecipient,
-    memoId: input.expectedMemoId,
-    amountNativeAtomic: parseUnits(input.expectedAmountUsdc, 18).toString(),
-    amountErc20Atomic: parseUnits(input.expectedAmountUsdc, 6).toString(),
-    canonicalEmitter: ARC_CONTRACTS.nativeUsdcEmitter,
-    logIndex: 2,
-    verificationMode: "fixture",
-  };
-}
-
-export async function verifyArcPayment(
-  input: VerifyInput,
-): Promise<PaymentVerificationResult> {
-  const { runtime, client } = createArcClient();
-
-  if (runtime.paymentMode === "fixture") {
-    return {
-      status: "verified",
-      proof: fixtureProof(input),
-    };
-  }
-
-  const rpcChainId = await client.getChainId();
-
-  if (rpcChainId !== runtime.chainId) {
-    return {
-      status: "rejected",
-      reason: `The configured RPC returned chain ${rpcChainId}, expected ${runtime.chainId}.`,
-    };
-  }
-
-  let receipt;
-
-  try {
-    receipt = await client.getTransactionReceipt({ hash: input.txHash });
-  } catch (error) {
-    if (error instanceof TransactionReceiptNotFoundError) {
-      return { status: "pending" };
-    }
-    throw error;
-  }
+export function verifyArcPaymentArtifacts(
+  input: VerifyInput & ArcPaymentArtifacts,
+): PaymentVerificationResult {
+  const { receipt, transaction } = input;
 
   if (receipt.status !== "success") {
     return {
@@ -113,14 +83,10 @@ export async function verifyArcPayment(
     };
   }
 
-  const transaction = await client.getTransaction({
-    hash: input.txHash,
-  });
-
-  if (transaction.chainId !== runtime.chainId) {
+  if (transaction.chainId !== getArcRuntimeConfig().chainId) {
     return {
       status: "rejected",
-      reason: `The transaction was submitted on chain ${transaction.chainId}, expected ${runtime.chainId}.`,
+      reason: `The transaction was submitted on chain ${transaction.chainId}, expected ${getArcRuntimeConfig().chainId}.`,
     };
   }
 
@@ -331,4 +297,75 @@ export async function verifyArcPayment(
       verificationMode: "live",
     },
   };
+}
+
+function fixtureProof(
+  input: VerifyInput,
+): PaymentProof {
+  return {
+    txHash: input.txHash,
+    blockNumber: "123456",
+    blockHash: `0x${"1".repeat(64)}`,
+    payerAddress: "0x1111111111111111111111111111111111111111",
+    recipientAddress: input.expectedRecipient,
+    memoId: input.expectedMemoId,
+    amountNativeAtomic: parseUnits(input.expectedAmountUsdc, 18).toString(),
+    amountErc20Atomic: parseUnits(input.expectedAmountUsdc, 6).toString(),
+    canonicalEmitter: ARC_CONTRACTS.nativeUsdcEmitter,
+    logIndex: 2,
+    verificationMode: "fixture",
+  };
+}
+
+export async function verifyArcPayment(
+  input: VerifyInput,
+): Promise<PaymentVerificationResult> {
+  const { runtime, client } = createArcClient();
+
+  if (runtime.paymentMode === "fixture") {
+    return {
+      status: "verified",
+      proof: fixtureProof(input),
+    };
+  }
+
+  const rpcChainId = await client.getChainId();
+
+  if (rpcChainId !== runtime.chainId) {
+    return {
+      status: "rejected",
+      reason: `The configured RPC returned chain ${rpcChainId}, expected ${runtime.chainId}.`,
+    };
+  }
+
+  let receipt;
+
+  try {
+    receipt = await client.getTransactionReceipt({ hash: input.txHash });
+  } catch (error) {
+    if (error instanceof TransactionReceiptNotFoundError) {
+      return { status: "pending" };
+    }
+    throw error;
+  }
+
+  const transaction = await client.getTransaction({
+    hash: input.txHash,
+  });
+
+  return verifyArcPaymentArtifacts({
+    ...input,
+    transaction: {
+      chainId: transaction.chainId ?? null,
+      from: transaction.from,
+      to: transaction.to,
+      input: transaction.input,
+    },
+    receipt: {
+      status: receipt.status,
+      blockNumber: receipt.blockNumber,
+      blockHash: receipt.blockHash,
+      logs: receipt.logs,
+    },
+  });
 }

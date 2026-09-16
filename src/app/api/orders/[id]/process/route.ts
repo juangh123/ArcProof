@@ -41,7 +41,9 @@ export async function POST(
     );
   }
 
-  if (!claimOrderForProcessing(order.id)) {
+  const processingAttempt = claimOrderForProcessing(order.id);
+
+  if (!processingAttempt) {
     const current = getOrderById(order.id);
     return NextResponse.json(
       {
@@ -59,7 +61,19 @@ export async function POST(
 
   try {
     const quote = await extractQuoteFromText(order.sourceText);
-    completeOrder(order.id, quote);
+    const completedNow = completeOrder(
+      order.id,
+      quote,
+      processingAttempt,
+    );
+
+    if (!completedNow) {
+      return NextResponse.json(
+        { error: "This processing lease was replaced by a newer attempt." },
+        { status: 409 },
+      );
+    }
+
     const completed = getOrderById(order.id);
     logEvent("order.processing.completed", {
       publicId: order.publicId,
@@ -85,6 +99,7 @@ export async function POST(
       error instanceof Error
         ? error.message
         : "The quotation could not be processed.",
+      processingAttempt,
     );
     return NextResponse.json(
       { error: "The quotation could not be processed." },
