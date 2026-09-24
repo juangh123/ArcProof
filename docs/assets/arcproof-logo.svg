@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" role="img" aria-label="ArcProof">
+  <rect width="480" height="480" fill="#0b1220"/>
+  <path
+    d="M73 307C64 210 105 121 180 84c77-39 168-20 222 48"
+    fill="none"
+    stroke="#2dd4bf"
+    stroke-width="28"
+    stroke-linecap="round"
+  />
+  <rect x="145" y="105" width="190" height="250" rx="28" fill="#f8fafc"/>
+  <path d="M188 176h104M188 222h104M188 268h64" stroke="#0b1220" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="343" cy="337" r="64" fill="#22c55e"/>
+  <path d="m315 337 19 19 38-43" fill="none" stroke="#ffffff" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

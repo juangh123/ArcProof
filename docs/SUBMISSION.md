@@ -16,6 +16,12 @@ https://github.com/juangh123/ArcProof
 
 https://github.com/juangh123
 
+## DoraHacks submission
+
+https://dorahacks.io/buidl/49114
+
+Status: Under review for Arc Microgrants.
+
 ## Short description
 
 ArcProof turns supplier quotation documents into structured, validated line-item data. A customer uploads a quote, sees the fixed USDC price, pays through the Arc Memo contract, and receives the extraction result only after the server independently verifies the final Arc transaction.
