@@ -4,6 +4,17 @@ ArcProof turns supplier quotation documents into structured purchasing data and 
 
 The project is built for freelancers, small sourcing teams, and agent workflows that need a complete payment-to-delivery loop without a separate indexer or reconciliation spreadsheet.
 
+## Live demo
+
+- Application: https://arcproof-production.up.railway.app
+- Completed Arc Mainnet order: https://arcproof-production.up.railway.app/proof/AP-AC247758
+- Mainnet transaction: `0x780b08710fa38e12d35a117918508d2bead4f3e6c88bab203e48dd501d36fe80`
+- CSV result: https://arcproof-production.up.railway.app/api/orders/fc116601-6775-46aa-842a-c8d5eed5304a/csv
+
+The completed order settled `0.10 USDC` on Arc Mainnet and returned three structured quotation lines.
+
+![ArcProof completed Arc Mainnet receipt](docs/assets/arcproof-proof-desktop.png)
+
 ## Payment guarantees
 
 The server independently verifies:
@@ -11,7 +22,7 @@ The server independently verifies:
 - Arc network and Chain ID `5042` in production.
 - The `Memo.memo` call and its order identifier.
 - The nested USDC `transfer` call, recipient, and amount.
-- The canonical EIP-7708 native USDC event at 18 decimals.
+- The applicable EIP-7708 native USDC event at 18 decimals.
 - The ERC-20 USDC mirror event at 6 decimals, without counting it twice.
 - A successful final transaction receipt.
 - Unique transaction use across all orders.
@@ -41,6 +52,8 @@ Result plus public payment receipt
 ```
 
 Failed extraction jobs can be retried without another payment. A processing lease also allows recovery after an interrupted server request.
+
+The active order and any submitted transaction hash are kept locally in the browser. Reloading the workbench resumes payment verification or quotation processing from the server-side order state, while the public receipt can recover a verified order from another browser or device.
 
 ## Stack
 
@@ -100,19 +113,22 @@ ARCPROOF_DATA_DIR=/data
 | Arc Mainnet | `5042` | `0x3600000000000000000000000000000000000000` | `0x5294E9927c3306DcBaDb03fe70b92e01cCede505` |
 | Arc Testnet | `5042002` | `0x3600000000000000000000000000000000000000` | `0x5294E9927c3306DcBaDb03fe70b92e01cCede505` |
 
-The canonical native USDC emitter is `0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE` and uses 18 decimals. The ERC-20 interface emits a 6-decimal mirror event.
+The canonical native USDC emitter is `0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE` and uses 18 decimals. The ERC-20 interface emits a 6-decimal mirror event. Arc's EIP-7708 implementation emits no native self-transfer log, so a payment where payer and recipient are the same EOA is verified through the ERC-20 mirror and the signed Memo transfer.
 
 Only EOA wallets are supported by the initial Memo-based payment path. ERC-4337, Safe, and other smart contract wallets are intentionally out of scope for this version.
 
 ## Deployment
 
-The repository includes a Node.js 24 Dockerfile and `railway.toml`.
+The repository includes a Node.js 24 Dockerfile and a Railway
+Infrastructure as Code definition at `.railway/railway.ts`.
 
 1. Create a Railway service from this repository.
 2. Add a persistent volume mounted at `/data`.
 3. Keep the service at one replica because SQLite is single-instance storage.
 4. Set the production environment variables listed above.
-5. Wait for `/api/health` to return `ok: true`, Chain ID `5042`, and `configured: true`.
+5. Review and apply the Railway configuration with `railway config plan` and
+   `railway config apply --yes`.
+6. Wait for `/api/health` to return `ok: true`, Chain ID `5042`, and `configured: true`.
 
 The Railway-generated HTTPS URL is sufficient for the live deployment link.
 
@@ -169,4 +185,5 @@ The browser suite covers the complete sample flow and public receipt on desktop 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Mainnet runbook](docs/MAINNET_RUNBOOK.md)
 - [Operations](docs/OPERATIONS.md)
-- [Submission draft](docs/SUBMISSION.md)
+- [Submission](docs/SUBMISSION.md)
+- [Three-minute demo](docs/DEMO.md)

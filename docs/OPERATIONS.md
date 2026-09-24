@@ -4,6 +4,9 @@
 
 - Run one Railway replica with a persistent volume mounted at `/data`.
 - Set `ARCPROOF_DATA_DIR=/data` or use the Dockerfile default.
+- Use `.railway/railway.ts` as the source of truth for Railway build and deployment settings.
+- Run `railway config plan` before applying infrastructure changes, then run
+  `railway config apply --yes`.
 - Confirm `/api/health` returns `ok: true`, Chain ID `5042`, `live` payment mode, and `configured: true`.
 - Keep browser-wallet private keys outside the application, repository, and environment variables.
 
@@ -31,5 +34,6 @@ Use a SQLite-safe backup command or stop the service before copying the files. D
 
 - If Arc RPC is unavailable, new verification requests remain recoverable; already verified orders retain their evidence.
 - If processing fails, retry the order from the workbench without requesting another payment.
+- If the browser closes after payment or processing begins, reopen the workbench to restore the local order reference, or use the public receipt's resume action.
 - If a payment is verified but permanent processing remains impossible, use the payer and amount in the public receipt to handle a manual refund.
 - Never edit transaction hashes or payment evidence directly in the database.

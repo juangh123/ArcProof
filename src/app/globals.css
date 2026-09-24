@@ -983,6 +983,37 @@ th.numeric {
   line-height: 1.55;
 }
 
+.proof-action {
+  margin: 0 24px 24px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-soft);
+}
+
+.proof-action strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.proof-action p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.proof-action > .inline-alert {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .receipt-grid {
   margin: 0 24px 24px;
   display: grid;
@@ -1169,8 +1200,17 @@ th.numeric {
   }
 
   .proof-verified,
-  .proof-pending {
+  .proof-pending,
+  .proof-action {
     margin: 16px;
+  }
+
+  .proof-action {
+    grid-template-columns: 1fr;
+  }
+
+  .proof-action .button {
+    width: 100%;
   }
 
   .receipt-grid {

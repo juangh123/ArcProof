@@ -20,6 +20,7 @@ export type PaymentProof = {
   amountErc20Atomic: string;
   canonicalEmitter: `0x${string}`;
   logIndex: number;
+  nativeEventOmitted: boolean;
   verificationMode: "live" | "fixture";
 };
 

@@ -16,7 +16,7 @@ import {
   Upload,
   WalletCards,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import type { PublicArcConfig } from "@/lib/arc/config";
 import { payOrderWithArc } from "@/lib/arc/wallet";
@@ -31,14 +31,183 @@ type ApiResponse = {
   status?: string;
 };
 
+type StoredOrder = {
+  orderId: string;
+  txHash?: `0x${string}`;
+  savedAt: number;
+};
+
+const ACTIVE_ORDER_KEY = "arcproof.active-order.v1";
+const ACTIVE_ORDER_MAX_AGE = 7 * 24 * 60 * 60_000;
+
+class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly order: SerializedOrder | null,
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 async function readResponse(response: Response) {
   const payload = (await response.json().catch(() => ({}))) as ApiResponse;
 
   if (!response.ok) {
-    throw new Error(payload.error || "The request failed.");
+    throw new ApiRequestError(
+      payload.error || "The request failed.",
+      response.status,
+      payload.order ?? null,
+    );
   }
 
   return payload;
+}
+
+function readStoredOrder(): StoredOrder | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_ORDER_KEY);
+
+    if (!raw) {
+      return null;
+    }
+
+    const stored = JSON.parse(raw) as Partial<StoredOrder>;
+    const isFresh =
+      typeof stored.savedAt === "number" &&
+      Date.now() - stored.savedAt < ACTIVE_ORDER_MAX_AGE;
+    const hasValidHash =
+      stored.txHash === undefined ||
+      /^0x[0-9a-f]{64}$/i.test(stored.txHash);
+    const savedAt = stored.savedAt;
+
+    if (
+      !isFresh ||
+      typeof savedAt !== "number" ||
+      typeof stored.orderId !== "string" ||
+      !stored.orderId ||
+      !hasValidHash
+    ) {
+      window.localStorage.removeItem(ACTIVE_ORDER_KEY);
+      return null;
+    }
+
+    return {
+      orderId: stored.orderId,
+      txHash: stored.txHash as `0x${string}` | undefined,
+      savedAt,
+    };
+  } catch {
+    window.localStorage.removeItem(ACTIVE_ORDER_KEY);
+    return null;
+  }
+}
+
+function storeOrder(orderId: string, txHash?: `0x${string}`) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const stored: StoredOrder = {
+    orderId,
+    savedAt: Date.now(),
+  };
+
+  if (txHash) {
+    stored.txHash = txHash;
+  }
+
+  window.localStorage.setItem(ACTIVE_ORDER_KEY, JSON.stringify(stored));
+}
+
+function clearStoredOrder() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(ACTIVE_ORDER_KEY);
+  }
+}
+
+async function fetchOrder(orderId: string) {
+  const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
+    cache: "no-store",
+  });
+  const payload = await readResponse(response);
+
+  if (!payload.order) {
+    throw new ApiRequestError("Order not found.", 404, null);
+  }
+
+  return payload.order;
+}
+
+async function requestPaymentVerification(
+  orderId: string,
+  txHash: `0x${string}`,
+) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const response = await fetch(
+      `/api/orders/${encodeURIComponent(orderId)}/verify`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ txHash }),
+      },
+    );
+    const payload = (await response.json().catch(() => ({}))) as ApiResponse;
+
+    if (response.status === 202) {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      continue;
+    }
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        payload.error || "Arc payment verification failed.",
+        response.status,
+        payload.order ?? null,
+      );
+    }
+
+    if (!payload.order) {
+      throw new ApiRequestError(
+        "Arc verification returned no order.",
+        response.status,
+        null,
+      );
+    }
+
+    return payload.order;
+  }
+
+  throw new ApiRequestError(
+    "The transaction is still pending. Keep the transaction hash and verify again shortly.",
+    202,
+    null,
+  );
+}
+
+async function requestOrderProcessing(orderId: string) {
+  const response = await fetch(
+    `/api/orders/${encodeURIComponent(orderId)}/process`,
+    {
+      method: "POST",
+    },
+  );
+  const payload = await readResponse(response);
+
+  if (!payload.order) {
+    throw new ApiRequestError(
+      "The processing request returned no order.",
+      response.status,
+      null,
+    );
+  }
+
+  return payload.order;
 }
 
 function shorten(value: string | null | undefined, visible = 8) {
@@ -95,10 +264,115 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
   const [isCreating, setIsCreating] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const step = currentStep(order);
   const paymentReady = Boolean(config.configured && order);
+
+  useEffect(() => {
+    const storedOrder = readStoredOrder();
+
+    if (!storedOrder) {
+      return;
+    }
+
+    const stored = storedOrder;
+    let active = true;
+
+    async function restoreOrder() {
+      setIsRestoring(true);
+      setNotice("Restoring your active order.");
+
+      try {
+        let restoredOrder = await fetchOrder(stored.orderId);
+
+        if (!active) {
+          return;
+        }
+
+        setOrder(restoredOrder);
+        storeOrder(restoredOrder.id, stored.txHash);
+
+        if (
+          stored.txHash &&
+          (restoredOrder.status === "awaiting_payment" ||
+            restoredOrder.status === "verifying")
+        ) {
+          setIsPaying(true);
+          setNotice("Resuming Arc payment verification.");
+          restoredOrder = await requestPaymentVerification(
+            restoredOrder.id,
+            stored.txHash,
+          );
+
+          if (!active) {
+            return;
+          }
+
+          setOrder(restoredOrder);
+          storeOrder(restoredOrder.id);
+          setNotice("Arc payment verified.");
+        }
+
+        if (restoredOrder.status === "payment_verified") {
+          setIsProcessing(true);
+          setNotice("Extracting line items.");
+          restoredOrder = await requestOrderProcessing(restoredOrder.id);
+
+          if (!active) {
+            return;
+          }
+
+          setOrder(restoredOrder);
+          setNotice("Structured quotation generated.");
+        } else if (restoredOrder.status === "processing") {
+          setNotice(
+            "Processing is already in progress. Resume it if the previous attempt stopped.",
+          );
+        } else if (restoredOrder.status === "failed") {
+          setNotice("The previous processing attempt needs a retry.");
+        } else if (restoredOrder.status === "completed") {
+          setNotice("Completed order restored.");
+        } else {
+          setNotice("Active order restored. Continue payment when ready.");
+        }
+      } catch (requestError) {
+        if (!active) {
+          return;
+        }
+
+        if (requestError instanceof ApiRequestError) {
+          if (requestError.order) {
+            setOrder(requestError.order);
+            storeOrder(requestError.order.id);
+          }
+
+          if (requestError.status === 404) {
+            clearStoredOrder();
+          }
+        }
+
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "The active order could not be restored.",
+        );
+      } finally {
+        if (active) {
+          setIsPaying(false);
+          setIsProcessing(false);
+          setIsRestoring(false);
+        }
+      }
+    }
+
+    void restoreOrder();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const networkTone = useMemo(() => {
     if (config.network === "mainnet") {
@@ -132,6 +406,7 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
       }
 
       setOrder(payload.order);
+      storeOrder(payload.order.id);
       setNotice("Payment request created.");
     } catch (requestError) {
       setError(
@@ -156,16 +431,19 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
         return;
       }
 
-      const response = await fetch(`/api/orders/${orderId}/process`, {
-        method: "POST",
-      });
-      const payload = await readResponse(response);
-
-      if (payload.order) {
-        setOrder(payload.order);
-      }
+      const processedOrder = await requestOrderProcessing(orderId);
+      setOrder(processedOrder);
+      storeOrder(processedOrder.id);
       setNotice("Structured quotation generated.");
     } catch (requestError) {
+      if (
+        requestError instanceof ApiRequestError &&
+        requestError.order
+      ) {
+        setOrder(requestError.order);
+        storeOrder(requestError.order.id);
+      }
+
       setError(
         requestError instanceof Error
           ? requestError.message
@@ -177,40 +455,11 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
   }
 
   async function verifyPayment(orderId: string, txHash: `0x${string}`) {
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      const response = await fetch(`/api/orders/${orderId}/verify`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ txHash }),
-      });
-      const payload = (await response.json().catch(() => ({}))) as ApiResponse;
-
-      if (response.status === 202) {
-        setNotice("Transaction submitted. Waiting for Arc finality.");
-        await new Promise((resolve) => setTimeout(resolve, 1_500));
-        continue;
-      }
-
-      if (!response.ok) {
-        if (payload.order) {
-          setOrder(payload.order);
-        }
-        throw new Error(payload.error || "Arc payment verification failed.");
-      }
-
-      if (!payload.order) {
-        throw new Error("Arc verification returned no order.");
-      }
-
-      setOrder(payload.order);
-      setNotice("Arc payment verified.");
-      await processOrder(orderId, payload.order);
-      return;
-    }
-
-    throw new Error(
-      "The transaction is still pending. Keep the transaction hash and verify again shortly.",
-    );
+    const verifiedOrder = await requestPaymentVerification(orderId, txHash);
+    setOrder(verifiedOrder);
+    storeOrder(verifiedOrder.id);
+    setNotice("Arc payment verified.");
+    await processOrder(orderId, verifiedOrder);
   }
 
   async function payWithArc() {
@@ -227,9 +476,18 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
         config.paymentMode === "fixture"
           ? createFixtureHash()
           : await payOrderWithArc({ config, order });
+      storeOrder(order.id, txHash);
       setNotice("Transaction submitted to Arc.");
       await verifyPayment(order.id, txHash);
     } catch (paymentError) {
+      if (
+        paymentError instanceof ApiRequestError &&
+        paymentError.order
+      ) {
+        setOrder(paymentError.order);
+        storeOrder(paymentError.order.id);
+      }
+
       setError(
         paymentError instanceof Error
           ? paymentError.message
@@ -247,6 +505,7 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
   }
 
   function resetOrder() {
+    clearStoredOrder();
     setOrder(null);
     setFile(null);
     setNotice("");
@@ -360,7 +619,7 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
               className="button button-primary button-wide"
               type="button"
               onClick={() => createOrder({ sample: true })}
-              disabled={isCreating}
+              disabled={isCreating || isRestoring}
             >
               {isCreating ? (
                 <Loader2 className="spin" size={17} />
@@ -406,7 +665,9 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
                 className="button button-primary button-wide"
                 type="button"
                 onClick={payWithArc}
-                disabled={!paymentReady || isPaying || isProcessing}
+                disabled={
+                  !paymentReady || isPaying || isProcessing || isRestoring
+                }
               >
                 {isPaying ? (
                   <Loader2 className="spin" size={17} />
@@ -419,19 +680,23 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
               </button>
             ) : null}
 
-            {order.status === "failed" && order.paymentProof ? (
+            {(order.status === "failed" ||
+              order.status === "processing") &&
+            order.paymentProof ? (
               <button
                 className="button button-primary button-wide"
                 type="button"
                 onClick={() => processOrder(order.id, order)}
-                disabled={isProcessing || isPaying}
+                disabled={isProcessing || isPaying || isRestoring}
               >
                 {isProcessing ? (
                   <Loader2 className="spin" size={17} />
                 ) : (
                   <RefreshCw size={17} />
                 )}
-                Retry processing
+                {order.status === "failed"
+                  ? "Retry processing"
+                  : "Resume processing"}
               </button>
             ) : null}
 

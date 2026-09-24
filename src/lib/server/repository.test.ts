@@ -48,6 +48,7 @@ function proofFor(
     amountErc20Atomic: order.amountAtomic6,
     canonicalEmitter: "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE",
     logIndex: 1,
+    nativeEventOmitted: false,
     verificationMode: "fixture",
   };
 }

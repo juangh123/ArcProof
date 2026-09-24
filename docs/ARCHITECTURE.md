@@ -43,7 +43,7 @@ Classifies native and ERC-20 USDC transfer logs. The native 18-decimal event is 
 
 `src/lib/arc/verifier.ts`
 
-Validates the final transaction, Memo binding, nested transfer, recipient, amount, and both event representations.
+Validates the final transaction, Memo binding, nested transfer, recipient, amount, and the applicable event representations. EIP-7708 omits the native self-transfer log, so that case uses the ERC-20 mirror without weakening normal-transfer checks.
 
 `src/lib/server/repository.ts`
 
@@ -72,6 +72,8 @@ awaiting_payment
 - A transaction hash has a database-level unique constraint across all orders.
 - Payment recording uses a conditional update, so the first verified transaction wins.
 - A failed processing job remains linked to its verified payment and can be retried without repaying.
+- The browser stores the active order identifier and any pending transaction hash locally, so a reload can resume verification and processing without creating a second payment.
+- A public receipt exposes a resume-processing action for verified orders whose fulfillment was interrupted.
 - Unpaid orders older than 24 hours are removed during new order creation.
 - Order creation is limited to ten requests per client in a ten-minute window per application instance.
 
@@ -85,7 +87,7 @@ Arc provides:
 - Native USDC and an ERC-20 interface that share one balance but emit different precision representations.
 - The Memo predeploy for order references.
 
-ArcProof uses these properties to release a paid result immediately and to create a compact, auditable payment receipt. Replacing Arc with a conventional EVM chain would require a different confirmation model and would lose the canonical native USDC event used by the verifier.
+ArcProof uses these properties to release a paid result immediately and to create a compact, auditable payment receipt. Replacing Arc with a conventional EVM chain would require a different confirmation model and would lose the canonical native USDC event used by the verifier. EIP-7708 omits native self-transfer logs, so self-payments are verified against the ERC-20 mirror and the signed Memo transfer while normal payments still require both representations.
 
 ## Current limits
 

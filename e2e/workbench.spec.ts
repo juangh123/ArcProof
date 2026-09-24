@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { randomBytes } from "node:crypto";
 
 test("completes the paid quote flow and opens a public receipt", async ({
   page,
@@ -17,6 +18,11 @@ test("completes the paid quote flow and opens a public receipt", async ({
     timeout: 30_000,
   });
 
+  await page.reload();
+  await expect(page.getByText("0.10 USDC").first()).toBeVisible({
+    timeout: 30_000,
+  });
+
   await page
     .getByRole("button", { name: "Verify fixture payment" })
     .click();
@@ -26,6 +32,13 @@ test("completes the paid quote flow and opens a public receipt", async ({
   await expect(
     page.getByText("Aluminum plate, 6 mm, mill finish"),
   ).toBeVisible();
+
+  await page.reload();
+  await expect(
+    page.getByText("Aluminum plate, 6 mm, mill finish"),
+  ).toBeVisible({
+    timeout: 30_000,
+  });
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "CSV" }).click();
@@ -62,6 +75,39 @@ test("rejects a file with a PDF extension but invalid content", async ({
   await page.getByRole("button", { name: "Create order" }).click();
 
   await expect(page.getByText("not a valid PDF document")).toBeVisible();
+});
+
+test("resumes a verified order from the public receipt", async ({
+  page,
+  request,
+}) => {
+  const createResponse = await request.post("/api/orders", {
+    multipart: { sample: "true" },
+  });
+  const created = (await createResponse.json()) as {
+    order: { id: string; publicId: string };
+  };
+  const txHash = `0x${randomBytes(32).toString("hex")}`;
+  const verifyResponse = await request.post(
+    `/api/orders/${created.order.id}/verify`,
+    { data: { txHash } },
+  );
+  const verified = (await verifyResponse.json()) as {
+    order: { status: string };
+  };
+
+  expect(verifyResponse.ok()).toBe(true);
+  expect(verified.order.status).toBe("payment_verified");
+
+  await page.goto(`/proof/${created.order.publicId}`);
+  await page.getByRole("button", { name: "Resume processing" }).click();
+
+  await expect(page.getByText("3 lines")).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(
+    page.getByRole("button", { name: "Resume processing" }),
+  ).toBeHidden();
 });
 
 test("health endpoint exposes the configured network and security headers", async ({

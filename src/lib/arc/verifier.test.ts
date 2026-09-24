@@ -1,6 +1,7 @@
 import {
   encodeAbiParameters,
   encodeEventTopics,
+  getAddress,
   keccak256,
   parseAbiParameters,
 } from "viem";
@@ -34,13 +35,14 @@ function transferLog(
   address: Address,
   value: bigint,
   logIndex: number,
+  from: Address = payer,
 ): Log {
   return {
     address,
     topics: encodeEventTopics({
       abi: transferEventAbi,
       eventName: "Transfer",
-      args: { from: payer, to: recipient },
+      args: { from, to: recipient },
     }),
     data: encodeAbiParameters(parseAbiParameters("uint256"), [value]),
     blockNumber: 100n,
@@ -52,14 +54,14 @@ function transferLog(
   } as Log;
 }
 
-function memoLog(): Log {
+function memoLog(sender: Address = payer): Log {
   return {
     address: ARC_CONTRACTS.memo,
     topics: encodeEventTopics({
       abi: memoAbi,
       eventName: "Memo",
       args: {
-        sender: payer,
+        sender,
         target: ARC_CONTRACTS.usdc,
         memoId,
       },
@@ -123,7 +125,44 @@ describe("verifyArcPaymentArtifacts", () => {
         "100000000000000000",
       );
       expect(result.proof.amountErc20Atomic).toBe("100000");
+      expect(result.proof.nativeEventOmitted).toBe(false);
       expect(result.proof.verificationMode).toBe("live");
+    }
+  });
+
+  it("accepts a self-transfer when EIP-7708 omits the native event", () => {
+    const artifacts = createArtifacts();
+    artifacts.transaction.from = recipient;
+    artifacts.receipt.logs = [
+      memoLog(recipient),
+      transferLog(ARC_CONTRACTS.usdc, 100_000n, 1, recipient),
+    ];
+    const result = verifyArcPaymentArtifacts(artifacts);
+
+    expect(result.status).toBe("verified");
+
+    if (result.status === "verified") {
+      expect(result.proof.nativeEventOmitted).toBe(true);
+      expect(result.proof.amountNativeAtomic).toBe(
+        "100000000000000000",
+      );
+      expect(result.proof.amountErc20Atomic).toBe("100000");
+    }
+  });
+
+  it("rejects a non-self transfer without the native event", () => {
+    const artifacts = createArtifacts();
+    artifacts.receipt.logs = artifacts.receipt.logs.filter(
+      (log) =>
+        getAddress(log.address) !==
+        getAddress(ARC_CONTRACTS.nativeUsdcEmitter),
+    );
+    const result = verifyArcPaymentArtifacts(artifacts);
+
+    expect(result.status).toBe("rejected");
+
+    if (result.status === "rejected") {
+      expect(result.reason).toContain("Expected one canonical");
     }
   });
 

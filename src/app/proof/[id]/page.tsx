@@ -11,6 +11,7 @@ import {
 import { getOrderByPublicId, getOrderEvents } from "@/lib/server/repository";
 import { orderStatusLabels } from "@/lib/domain/order";
 import { getPublicArcConfig } from "@/lib/arc/config";
+import { ResumeProcessing } from "@/components/resume-processing";
 
 export const dynamic = "force-dynamic";
 
@@ -123,8 +124,8 @@ export default async function ProofPage({
                 <div>
                   <strong>Canonical payment verified</strong>
                   <p>
-                    Memo binding, recipient, amount, and both Arc USDC event
-                    representations were checked.
+                    Memo binding, recipient, amount, and the applicable Arc
+                    USDC event representations were checked.
                   </p>
                 </div>
               </div>
@@ -168,7 +169,11 @@ export default async function ProofPage({
                 </div>
                 <div>
                   <dt>Native event</dt>
-                  <dd>{proof.amountNativeAtomic} · 18 decimals</dd>
+                  <dd>
+                    {proof.nativeEventOmitted
+                      ? "Omitted for self-transfer (EIP-7708)"
+                      : `${proof.amountNativeAtomic} · 18 decimals`}
+                  </dd>
                 </div>
                 <div>
                   <dt>ERC-20 event</dt>
@@ -177,6 +182,8 @@ export default async function ProofPage({
               </dl>
             </>
           )}
+
+          <ResumeProcessing orderId={order.id} status={order.status} />
 
           <div className="event-section">
             <div className="section-title">

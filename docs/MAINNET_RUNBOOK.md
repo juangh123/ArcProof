@@ -47,7 +47,7 @@ Confirm:
 - The wallet switches to chain `5042`.
 - The transaction targets the Memo contract.
 - The receipt shows exactly one canonical 18-decimal native USDC transfer.
-- The receipt also shows one 6-decimal ERC-20 mirror for the same movement.
+- The receipt also shows one 6-decimal ERC-20 mirror for the same movement. When payer and recipient are the same EOA, EIP-7708 omits the native event; the verifier records that omission and uses the ERC-20 mirror plus the signed Memo transfer.
 - The order reaches `completed`.
 - The public proof page links to the transaction.
 - Reusing the same transaction on another order is rejected.

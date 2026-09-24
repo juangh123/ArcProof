@@ -257,8 +257,12 @@ export function verifyArcPaymentArtifacts(
       getAddress(event.args.to) === getAddress(input.expectedRecipient) &&
       event.args.value === expectedErc20Amount,
   );
+  const isSelfTransfer =
+    getAddress(transaction.from) === getAddress(input.expectedRecipient);
+  const nativeEventOmitted =
+    isSelfTransfer && systemTransfers.length === 0;
 
-  if (systemTransfers.length !== 1) {
+  if (!nativeEventOmitted && systemTransfers.length !== 1) {
     return {
       status: "rejected",
       reason: `Expected one canonical 18-decimal native USDC transfer, found ${systemTransfers.length}.`,
@@ -272,7 +276,12 @@ export function verifyArcPaymentArtifacts(
     };
   }
 
-  const canonicalTransfer = systemTransfers[0];
+  const canonicalTransfer = nativeEventOmitted
+    ? {
+        logIndex: erc20Transfers[0].logIndex,
+        args: { value: expectedNativeAmount },
+      }
+    : systemTransfers[0];
 
   if (!receipt.blockHash) {
     return {
@@ -294,6 +303,7 @@ export function verifyArcPaymentArtifacts(
       amountErc20Atomic: erc20Transfers[0].args.value.toString(),
       canonicalEmitter: getAddress(ARC_CONTRACTS.nativeUsdcEmitter),
       logIndex: canonicalTransfer.logIndex,
+      nativeEventOmitted,
       verificationMode: "live",
     },
   };
@@ -313,6 +323,7 @@ function fixtureProof(
     amountErc20Atomic: parseUnits(input.expectedAmountUsdc, 6).toString(),
     canonicalEmitter: ARC_CONTRACTS.nativeUsdcEmitter,
     logIndex: 2,
+    nativeEventOmitted: false,
     verificationMode: "fixture",
   };
 }
