@@ -2,8 +2,13 @@ import { getOrderById } from "@/lib/server/repository";
 
 export const runtime = "nodejs";
 
-function csvCell(value: string | number) {
-  const text = String(value);
+export function csvCell(value: string | number) {
+  let text = String(value);
+
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(text)) {
+    text = `'${text}`;
+  }
+
   return `"${text.replaceAll('"', '""')}"`;
 }
 

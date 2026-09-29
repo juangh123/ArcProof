@@ -57,3 +57,23 @@ export const orderCreateLimiter = createRateLimiter({
   limit: 10,
   windowMs: 10 * 60_000,
 });
+
+export const orderVerifyLimiter = createRateLimiter({
+  limit: 30,
+  windowMs: 10 * 60_000,
+});
+
+export const orderProcessLimiter = createRateLimiter({
+  limit: 20,
+  windowMs: 10 * 60_000,
+});
+
+export function getClientKey(request: Request) {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+
+  return (
+    forwardedFor?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}

@@ -35,8 +35,25 @@ export class TransactionReuseError extends Error {
   }
 }
 
+const SQLITE_CONSTRAINT_UNIQUE = 2067;
+
 function now() {
   return new Date().toISOString();
+}
+
+function isTransactionReuseError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const errcode = (error as { errcode?: number }).errcode;
+  const message = error.message.toLowerCase();
+
+  return (
+    (errcode === SQLITE_CONSTRAINT_UNIQUE ||
+      message.includes("unique constraint")) &&
+    message.includes("tx_hash")
+  );
 }
 
 function parseJson<T>(value: unknown): T | null {
@@ -264,10 +281,7 @@ export function recordVerifiedPayment(
       );
     }
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.toLowerCase().includes("orders.tx_hash")
-    ) {
+    if (isTransactionReuseError(error)) {
       throw new TransactionReuseError(
         "This Arc transaction has already been used.",
       );

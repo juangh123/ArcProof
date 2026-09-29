@@ -11,6 +11,7 @@ export function serializeOrder(order: OrderRecord, events: OrderEvent[] = []) {
     extractionMode: order.extractionMode,
     paymentMemoId: order.paymentMemoId,
     amountDisplay: order.amountDisplay,
+    recipientAddress: order.recipientAddress,
     amountAtomic18: order.amountAtomic18,
     amountAtomic6: order.amountAtomic6,
     network: order.network,

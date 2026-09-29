@@ -62,7 +62,7 @@ The result is released only after final settlement. Arc's deterministic finality
 
 The repository contains:
 
-- 27 passing unit and integration tests.
+- 37 passing unit and integration tests.
 - 8 passing Playwright browser tests across desktop and a 390px mobile viewport.
 - A production build verified in CI and in the Railway Docker build.
 - `pnpm preflight` checks for RPC chain ID, deployed USDC and Memo contracts, recipient balance, public health, database writability, and live payment mode.

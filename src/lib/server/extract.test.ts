@@ -19,6 +19,37 @@ describe("extractQuoteHeuristically", () => {
     expect(quote.validationIssues).toHaveLength(0);
     expect(quote.extractionMode).toBe("heuristic");
   });
+
+  it("extracts a space-aligned quotation with European decimals", () => {
+    const text = [
+      "ACME INDUSTRIAL SUPPLY",
+      "Quotation",
+      "Quote no: EU-2026-1",
+      "Currency: EUR",
+      "",
+      "Line    SKU        Description              Qty    Unit     Unit price    Line total",
+      "1       BLT-10     Hex bolt, 10 mm          100    piece    0,15          15,00",
+      "2       NUT-10     Hex nut, 10 mm            100    piece    0,08          8,00",
+      "",
+      "Subtotal: 23,00",
+      "Tax: 4,37",
+      "Total: 27,37",
+    ].join("\n");
+    const quote = extractQuoteHeuristically(text);
+
+    expect(quote.supplier).toBe("ACME INDUSTRIAL SUPPLY");
+    expect(quote.currency).toBe("EUR");
+    expect(quote.lineItems).toHaveLength(2);
+    expect(quote.lineItems[0].sku).toBe("BLT-10");
+    expect(quote.lineItems[0].description).toBe("Hex bolt, 10 mm");
+    expect(quote.lineItems[0].quantity).toBe(100);
+    expect(quote.lineItems[0].unitPrice).toBeCloseTo(0.15);
+    expect(quote.lineItems[0].lineTotal).toBeCloseTo(15);
+    expect(quote.subtotal).toBeCloseTo(23);
+    expect(quote.tax).toBeCloseTo(4.37);
+    expect(quote.total).toBeCloseTo(27.37);
+    expect(quote.validationIssues).toHaveLength(0);
+  });
 });
 
 describe("extractTextFromFile", () => {

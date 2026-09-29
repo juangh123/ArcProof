@@ -13,6 +13,7 @@ import {
   setOrderStatus,
 } from "@/lib/server/repository";
 import { logEvent } from "@/lib/server/logger";
+import { getClientKey, orderVerifyLimiter } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,20 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
+  const rateLimit = orderVerifyLimiter.check(getClientKey(request));
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many verification requests. Try again shortly." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+        },
+      },
+    );
+  }
+
   const order = getOrderById(id);
 
   if (!order) {
@@ -39,22 +54,16 @@ export async function POST(
     );
   }
 
-  if (
-    order.txHash &&
-    order.txHash.toLowerCase() !== txHash.toLowerCase()
-  ) {
-    return NextResponse.json(
-      { error: "This order already has a different payment transaction." },
-      { status: 409 },
-    );
-  }
+  if (order.txHash) {
+    if (order.txHash.toLowerCase() !== txHash.toLowerCase()) {
+      return NextResponse.json(
+        { error: "This order already has a different payment transaction." },
+        { status: 409 },
+      );
+    }
 
-  if (
-    order.txHash &&
-    (order.status === "payment_verified" ||
-      order.status === "processing" ||
-      order.status === "completed")
-  ) {
+    // A verified payment is already bound to this order. Return it as-is
+    // instead of downgrading a failed or completed order back to verifying.
     return NextResponse.json({
       order: serializeOrder(order, getOrderEvents(order.id)),
     });

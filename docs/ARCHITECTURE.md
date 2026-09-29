@@ -75,7 +75,8 @@ awaiting_payment
 - The browser stores the active order identifier and any pending transaction hash locally, so a reload can resume verification and processing without creating a second payment.
 - A public receipt exposes a resume-processing action for verified orders whose fulfillment was interrupted.
 - Unpaid orders older than 24 hours are removed during new order creation.
-- Order creation is limited to ten requests per client in a ten-minute window per application instance.
+- Order creation is limited to ten requests per client in a ten-minute window per application instance. Verification and processing requests are rate limited per client as well.
+- A job that finds no line items is kept as a retryable failure instead of releasing an empty paid result.
 
 ## Why Arc matters
 

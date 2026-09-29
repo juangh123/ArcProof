@@ -9,15 +9,30 @@ import {
 } from "@/lib/server/repository";
 import { extractQuoteFromText } from "@/lib/server/extract";
 import { logEvent } from "@/lib/server/logger";
+import { getClientKey, orderProcessLimiter } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
+  const rateLimit = orderProcessLimiter.check(getClientKey(request));
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many processing requests. Try again shortly." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+        },
+      },
+    );
+  }
+
   const order = getOrderById(id);
 
   if (!order) {
@@ -61,6 +76,15 @@ export async function POST(
 
   try {
     const quote = await extractQuoteFromText(order.sourceText);
+
+    if (quote.lineItems.length === 0) {
+      // Do not release a paid, empty result. Keep it retryable without a
+      // second payment and surface it as a failed job for manual follow-up.
+      throw new Error(
+        "No line items were detected. Retry the document or contact support for a refund.",
+      );
+    }
+
     const completedNow = completeOrder(
       order.id,
       quote,
@@ -101,8 +125,17 @@ export async function POST(
         : "The quotation could not be processed.",
       processingAttempt,
     );
+    const failed = getOrderById(order.id);
     return NextResponse.json(
-      { error: "The quotation could not be processed." },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "The quotation could not be processed.",
+        order: failed
+          ? serializeOrder(failed, getOrderEvents(order.id))
+          : null,
+      },
       { status: 500 },
     );
   }

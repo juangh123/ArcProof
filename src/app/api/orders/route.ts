@@ -9,7 +9,7 @@ import {
 import { SAMPLE_QUOTE_TEXT } from "@/lib/server/sample";
 import { extractTextFromFile } from "@/lib/server/extract";
 import { logEvent } from "@/lib/server/logger";
-import { orderCreateLimiter } from "@/lib/server/rate-limit";
+import { getClientKey, orderCreateLimiter } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -17,12 +17,7 @@ const MAX_FILE_SIZE = 8 * 1024 * 1024;
 
 export async function POST(request: Request) {
   const config = getArcRuntimeConfig();
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const clientKey =
-    forwardedFor?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
-  const rateLimit = orderCreateLimiter.check(clientKey);
+  const rateLimit = orderCreateLimiter.check(getClientKey(request));
 
   if (!rateLimit.allowed) {
     return NextResponse.json(
@@ -84,7 +79,9 @@ export async function POST(request: Request) {
       recipientAddress: config.recipientAddress,
       network: config.network,
       chainId: config.chainId,
-      isPublic: useSample,
+      // Receipts are shareable by design and expose payment facts and
+      // aggregate metadata only, so every order is a public receipt.
+      isPublic: true,
     });
     logEvent("order.created", {
       publicId: order.publicId,

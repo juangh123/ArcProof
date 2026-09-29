@@ -6,6 +6,10 @@ export const ARC_CONTRACTS = {
   nativeUsdcEmitter: "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE",
 } as const;
 
+// Keep the code default aligned with the documented and published 0.10 USDC
+// service price so a missing environment variable cannot silently overcharge.
+export const DEFAULT_QUOTE_PRICE_USDC = "0.10";
+
 export type ArcNetworkName = "mainnet" | "testnet";
 export type PaymentMode = "live" | "fixture";
 
@@ -78,7 +82,8 @@ export function getArcRuntimeConfig(): ArcRuntimeConfig {
     network,
     paymentMode: parsePaymentMode(process.env.ARC_PAYMENT_MODE, network),
     recipientAddress: parseRecipientAddress(process.env.ARC_RECIPIENT_ADDRESS),
-    quotePriceUsdc: process.env.ARC_QUOTE_PRICE_USDC ?? "3.00",
+    quotePriceUsdc:
+      process.env.ARC_QUOTE_PRICE_USDC?.trim() || DEFAULT_QUOTE_PRICE_USDC,
   };
 }
 

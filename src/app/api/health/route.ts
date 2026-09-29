@@ -64,6 +64,7 @@ export async function GET() {
       expectedChainId: config.chainId,
       network: config.network,
       paymentMode: config.paymentMode,
+      quotePriceUsdc: config.quotePriceUsdc,
       configured,
       version,
       timestamp: new Date().toISOString(),
