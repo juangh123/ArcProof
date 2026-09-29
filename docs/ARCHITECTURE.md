@@ -6,6 +6,9 @@
 Document upload or sample
         |
         v
+Preflight extraction and validation
+        |
+        v
 Order service creates a random payment memo
         |
         v
@@ -51,7 +54,7 @@ SQLite-backed order state, unique transaction binding, and idempotent processing
 
 `src/lib/server/extract.ts`
 
-PDF/text ingestion, optional model extraction, deterministic fallback, and output validation.
+PDF/text ingestion, optional model extraction, deterministic fallback, pre-payment validation, and output validation.
 
 ## Order state
 
@@ -71,6 +74,7 @@ awaiting_payment
 
 - A transaction hash has a database-level unique constraint across all orders.
 - Payment recording uses a conditional update, so the first verified transaction wins.
+- A document must produce at least one validated line item before an order or payment request is created. The draft remains hidden until payment verification succeeds.
 - A failed processing job remains linked to its verified payment and can be retried without repaying.
 - The browser stores the active order identifier and any pending transaction hash locally, so a reload can resume verification and processing without creating a second payment.
 - A public receipt exposes a resume-processing action for verified orders whose fulfillment was interrupted.

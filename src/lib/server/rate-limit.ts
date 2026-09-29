@@ -69,10 +69,16 @@ export const orderProcessLimiter = createRateLimiter({
 });
 
 export function getClientKey(request: Request) {
-  const forwardedFor = request.headers.get("x-forwarded-for");
+  const forwardedFor = request.headers
+    .get("x-forwarded-for")
+    ?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
 
+  // Proxies append the connecting address. Use the last entry so a
+  // client-supplied prefix cannot rotate the rate-limit key.
   return (
-    forwardedFor?.split(",")[0]?.trim() ||
+    forwardedFor?.at(-1) ||
     request.headers.get("x-real-ip") ||
     "unknown"
   );

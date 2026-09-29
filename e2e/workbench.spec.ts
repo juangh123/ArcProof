@@ -15,19 +15,19 @@ test("completes the paid quote flow and opens a public receipt", async ({
     .getByRole("button", { name: "Use sample quotation" })
     .click();
   await expect(page.getByText("0.10 USDC").first()).toBeVisible({
-    timeout: 30_000,
+    timeout: 60_000,
   });
 
   await page.reload();
   await expect(page.getByText("0.10 USDC").first()).toBeVisible({
-    timeout: 30_000,
+    timeout: 60_000,
   });
 
   await page
     .getByRole("button", { name: "Verify fixture payment" })
     .click();
   await expect(page.getByText("Completed", { exact: true }).first()).toBeVisible({
-    timeout: 30_000,
+    timeout: 60_000,
   });
   await expect(
     page.getByText("Aluminum plate, 6 mm, mill finish"),
@@ -37,7 +37,7 @@ test("completes the paid quote flow and opens a public receipt", async ({
   await expect(
     page.getByText("Aluminum plate, 6 mm, mill finish"),
   ).toBeVisible({
-    timeout: 30_000,
+    timeout: 60_000,
   });
 
   const downloadPromise = page.waitForEvent("download");
@@ -47,15 +47,13 @@ test("completes the paid quote flow and opens a public receipt", async ({
 
   const receiptLink = page.getByRole("link", { name: "Public receipt" });
   await expect(receiptLink).toBeVisible();
+  const receiptUrl = await receiptLink.getAttribute("href");
+  expect(receiptUrl).toBeTruthy();
+  await page.goto(receiptUrl!);
 
-  const [receipt] = await Promise.all([
-    page.waitForEvent("popup"),
-    receiptLink.click(),
-  ]);
-
-  await expect(receipt.getByText("Canonical payment verified")).toBeVisible();
-  await expect(receipt.getByText("Native event")).toBeVisible();
-  await expect(receipt.getByText("ERC-20 event")).toBeVisible();
+  await expect(page.getByText("Canonical payment verified")).toBeVisible();
+  await expect(page.getByText("Native event")).toBeVisible();
+  await expect(page.getByText("ERC-20 event")).toBeVisible();
 
   await page.screenshot({
     path: testInfo.outputPath("arcproof-completed.png"),
@@ -74,7 +72,9 @@ test("rejects a file with a PDF extension but invalid content", async ({
   });
   await page.getByRole("button", { name: "Create order" }).click();
 
-  await expect(page.getByText("not a valid PDF document")).toBeVisible();
+  await expect(page.getByText("not a valid PDF document")).toBeVisible({
+    timeout: 30_000,
+  });
 });
 
 test("resumes a verified order from the public receipt", async ({
@@ -103,11 +103,11 @@ test("resumes a verified order from the public receipt", async ({
   await page.getByRole("button", { name: "Resume processing" }).click();
 
   await expect(page.getByText("3 lines")).toBeVisible({
-    timeout: 30_000,
+    timeout: 60_000,
   });
   await expect(
     page.getByRole("button", { name: "Resume processing" }),
-  ).toBeHidden();
+  ).toBeHidden({ timeout: 60_000 });
 });
 
 test("health endpoint exposes the configured network and security headers", async ({

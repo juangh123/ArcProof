@@ -7,11 +7,15 @@ import {
   getOrderEvents,
 } from "@/lib/server/repository";
 import { SAMPLE_QUOTE_TEXT } from "@/lib/server/sample";
-import { extractTextFromFile } from "@/lib/server/extract";
+import {
+  extractQuoteFromText,
+  extractTextFromFile,
+} from "@/lib/server/extract";
 import { logEvent } from "@/lib/server/logger";
 import { getClientKey, orderCreateLimiter } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 
@@ -71,10 +75,25 @@ export async function POST(request: Request) {
       sourceText = await extractTextFromFile(file);
     }
 
+    const quoteResult = await extractQuoteFromText(sourceText);
+
+    if (quoteResult.lineItems.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "No structured line items were found, so no payment request was created. Upload a quotation with a readable table, or provide the table as PDF, TXT, or Markdown.",
+        },
+        { status: 422 },
+      );
+    }
+
     const order = createOrder({
       sourceName,
       sourceKind,
-      sourceText,
+      // The validated draft is stored with the order, so the raw source text
+      // does not need to remain on disk while the user completes payment.
+      sourceText: "",
+      quoteResult,
       amountDisplay: config.quotePriceUsdc,
       recipientAddress: config.recipientAddress,
       network: config.network,

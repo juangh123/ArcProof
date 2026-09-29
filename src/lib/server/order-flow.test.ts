@@ -5,13 +5,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { GET as csvGet, csvCell } from "@/app/api/orders/[id]/csv/route";
 import { POST as processPost } from "@/app/api/orders/[id]/process/route";
 import { POST as verifyPost } from "@/app/api/orders/[id]/verify/route";
-import type { PaymentProof } from "@/lib/domain/order";
+import { POST as ordersPost } from "@/app/api/orders/route";
+import type { OrderRecord, PaymentProof } from "@/lib/domain/order";
 import { resetDatabaseForTests } from "@/lib/server/db";
 import {
   claimOrderForProcessing,
   createOrder,
   failOrder,
   getOrderById,
+  listRecentOrders,
   recordVerifiedPayment,
 } from "@/lib/server/repository";
 import { SAMPLE_QUOTE_TEXT } from "@/lib/server/sample";
@@ -33,7 +35,10 @@ function createTestOrder(sourceText: string) {
 
 function proofFor(
   txHash: `0x${string}`,
-  order: ReturnType<typeof createTestOrder>,
+  order: Pick<
+    OrderRecord,
+    "recipientAddress" | "paymentMemoId" | "amountAtomic18" | "amountAtomic6"
+  >,
 ): PaymentProof {
   return {
     txHash,
@@ -72,6 +77,15 @@ function processRequest(id: string) {
       method: "POST",
     }),
     routeContext(id),
+  );
+}
+
+function ordersRequest(formData: FormData) {
+  return ordersPost(
+    new Request("http://localhost/api/orders", {
+      method: "POST",
+      body: formData,
+    }),
   );
 }
 
@@ -134,6 +148,65 @@ describe("verify route", () => {
     const response = await verifyRequest(order.id, `0x${"d".repeat(64)}`);
 
     expect(response.status).toBe(409);
+  });
+});
+
+describe("order creation preflight", () => {
+  it("rejects an unextractable document before creating a payment order", async () => {
+    const before = listRecentOrders(100).length;
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File(["A friendly note with no quotation table."], "notes.txt", {
+        type: "text/plain",
+      }),
+    );
+
+    const response = await ordersRequest(formData);
+
+    expect(response.status).toBe(422);
+    expect(listRecentOrders(100)).toHaveLength(before);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining("No structured line items"),
+    });
+  });
+
+  it("stores a validated draft but hides it until payment is verified", async () => {
+    const formData = new FormData();
+    formData.set("sample", "true");
+
+    const response = await ordersRequest(formData);
+
+    expect(response.status).toBe(201);
+    const payload = (await response.json()) as {
+      order: {
+        id: string;
+        quoteResult: unknown;
+      };
+    };
+    expect(payload.order.quoteResult).toBeNull();
+
+    const stored = getOrderById(payload.order.id);
+    expect(stored?.sourceText).toBe("");
+    expect(stored?.quoteResult?.lineItems).toHaveLength(3);
+
+    const txHash = `0x${"a".repeat(64)}` as const;
+    recordVerifiedPayment(payload.order.id, proofFor(txHash, stored!));
+
+    const processed = await processRequest(payload.order.id);
+    expect(processed.status).toBe(200);
+    await expect(processed.json()).resolves.toMatchObject({
+      order: {
+        status: "completed",
+        quoteResult: {
+          lineItems: [
+            { sku: "ALU-6061" },
+            { sku: "FST-M8-80" },
+            { sku: "GSK-NBR-2" },
+          ],
+        },
+      },
+    });
   });
 });
 

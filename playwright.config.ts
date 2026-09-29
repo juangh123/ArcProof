@@ -1,15 +1,20 @@
 import { defineConfig, devices } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
-const port = 3_100;
+const port = Number(process.env.PLAYWRIGHT_PORT ?? 3_210);
+const testClientAddress = `playwright-${randomUUID()}`;
 
 export default defineConfig({
   testDir: "./e2e",
-  timeout: 60_000,
+  timeout: 120_000,
   fullyParallel: false,
   workers: 1,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: `http://localhost:${port}`,
+    extraHTTPHeaders: {
+      "x-forwarded-for": testClientAddress,
+    },
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },

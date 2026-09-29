@@ -102,7 +102,11 @@ export default async function ProofPage({
             </div>
             <div>
               <span>Extraction</span>
-              <strong>{order.quoteResult?.lineItems.length ?? 0} lines</strong>
+              <strong>
+                {order.status === "completed"
+                  ? `${order.quoteResult?.lineItems.length ?? 0} lines`
+                  : "Locked until processing"}
+              </strong>
             </div>
           </div>
 

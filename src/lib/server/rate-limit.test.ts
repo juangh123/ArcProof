@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRateLimiter } from "@/lib/server/rate-limit";
+import { createRateLimiter, getClientKey } from "@/lib/server/rate-limit";
 
 describe("createRateLimiter", () => {
   it("limits requests inside the window and resets afterward", () => {
@@ -17,5 +17,15 @@ describe("createRateLimiter", () => {
     expect(limiter.check("first", 0).allowed).toBe(true);
     expect(limiter.check("second", 100).allowed).toBe(true);
     expect(limiter.check("first", 200).allowed).toBe(false);
+  });
+
+  it("uses the proxy-appended client address", () => {
+    const request = new Request("http://localhost", {
+      headers: {
+        "x-forwarded-for": "203.0.113.10, 198.51.100.4",
+      },
+    });
+
+    expect(getClientKey(request)).toBe("198.51.100.4");
   });
 });

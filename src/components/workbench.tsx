@@ -250,7 +250,8 @@ function currentStep(order: SerializedOrder | null) {
   }
   if (
     order.status === "payment_verified" ||
-    order.status === "processing"
+    order.status === "processing" ||
+    order.status === "failed"
   ) {
     return 3;
   }

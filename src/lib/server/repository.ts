@@ -14,6 +14,7 @@ type CreateOrderInput = {
   sourceName: string;
   sourceKind: string;
   sourceText: string;
+  quoteResult?: QuoteResult | null;
   amountDisplay: string;
   recipientAddress: `0x${string}`;
   network: "mainnet" | "testnet";
@@ -128,9 +129,10 @@ export function createOrder(input: CreateOrderInput) {
     .prepare(
       `INSERT INTO orders (
         id, public_id, status, source_name, source_kind, source_text,
+        quote_result, extraction_mode,
         payment_memo_id, amount_display, amount_atomic18, amount_atomic6,
         recipient_address, network, chain_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -139,6 +141,8 @@ export function createOrder(input: CreateOrderInput) {
       input.sourceName,
       input.sourceKind,
       input.sourceText,
+      input.quoteResult ? JSON.stringify(input.quoteResult) : null,
+      input.quoteResult?.extractionMode ?? null,
       paymentMemoId,
       input.amountDisplay,
       parseUnits(input.amountDisplay, 18).toString(),

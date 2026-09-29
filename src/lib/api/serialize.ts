@@ -7,8 +7,12 @@ export function serializeOrder(order: OrderRecord, events: OrderEvent[] = []) {
     status: order.status,
     sourceName: order.sourceName,
     sourceKind: order.sourceKind,
-    quoteResult: order.quoteResult,
-    extractionMode: order.extractionMode,
+    // Preflight extraction is stored before payment, but the result is only
+    // exposed after processing completes for the paid order.
+    quoteResult:
+      order.status === "completed" ? order.quoteResult : null,
+    extractionMode:
+      order.status === "completed" ? order.extractionMode : null,
     paymentMemoId: order.paymentMemoId,
     amountDisplay: order.amountDisplay,
     recipientAddress: order.recipientAddress,

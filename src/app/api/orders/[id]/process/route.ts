@@ -75,7 +75,17 @@ export async function POST(
   }
 
   try {
-    const quote = await extractQuoteFromText(order.sourceText);
+    const quote = order.quoteResult
+      ? order.quoteResult
+      : order.sourceText
+        ? await extractQuoteFromText(order.sourceText)
+        : null;
+
+    if (!quote) {
+      throw new Error(
+        "The stored quotation result is unavailable. Contact support for a refund.",
+      );
+    }
 
     if (quote.lineItems.length === 0) {
       // Do not release a paid, empty result. Keep it retryable without a

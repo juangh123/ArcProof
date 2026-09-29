@@ -37,6 +37,9 @@ The frontend never grants fulfillment based on its own transaction success state
 Document upload or sample
         |
         v
+Preflight extraction and validated draft
+        |
+        v
 Order and random Arc memo created
         |
         v
@@ -52,7 +55,7 @@ Idempotent processing and CSV generation
 Result plus public payment receipt
 ```
 
-Failed extraction jobs can be retried without another payment. A processing lease also allows recovery after an interrupted server request.
+Documents that cannot produce a structured line item are rejected before an order or payment request is created. The validated draft stays server-side and is released only after the Arc payment is verified. Legacy failed jobs can be retried without another payment, and a processing lease allows recovery after an interrupted server request.
 
 The active order and any submitted transaction hash are kept locally in the browser. Reloading the workbench resumes payment verification or quotation processing from the server-side order state, while the public receipt can recover a verified order from another browser or device.
 
@@ -168,7 +171,7 @@ PUBLIC_BASE_URL=https://your-railway-domain \
 pnpm smoke verify <ORDER_ID> <TRANSACTION_HASH>
 ```
 
-The unit suite covers payment transaction uniqueness, failed-job retry, processing lease fencing, stale-order cleanup, request rate limiting, file validation, wrong chain/Memo/recipient/amount cases, duplicate Arc event rejection, the two-event Arc USDC model, quotation extraction, monetary consistency, price defaulting, empty-result handling, stale-order cleanup, scanned-PDF detection, and CSV formula neutralization.
+The unit suite covers payment transaction uniqueness, paid-draft release, pre-payment extraction rejection, failed-job retry, processing lease fencing, stale-order cleanup, request rate limiting, file validation, wrong chain/Memo/recipient/amount cases, duplicate Arc event rejection, the two-event Arc USDC model, quotation extraction, monetary consistency, price defaulting, empty-result handling, scanned-PDF detection, and CSV formula neutralization.
 
 The browser suite covers the complete sample flow and public receipt on desktop and a 390px mobile viewport.
 
@@ -176,7 +179,7 @@ The browser suite covers the complete sample flow and public receipt on desktop 
 
 - Uploaded source files are not stored.
 - Scanned or image-only PDFs are not OCRed; a text-based PDF or plain-text export is required.
-- Extracted source text is removed after successful processing.
+- Extracted source text is discarded after preflight validation; the validated draft is held server-side until payment.
 - The public proof page exposes payment facts and aggregate result metadata only.
 - The service does not provide custody, exchange, tax advice, or accounting services.
 - The first version uses one fixed price, one application instance, and EOA wallets only.

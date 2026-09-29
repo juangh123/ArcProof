@@ -62,7 +62,7 @@ The result is released only after final settlement. Arc's deterministic finality
 
 The repository contains:
 
-- 39 passing unit and integration tests.
+- 42 passing unit and integration tests.
 - 8 passing Playwright browser tests across desktop and a 390px mobile viewport.
 - A production build verified in CI and in the Railway Docker build.
 - `pnpm preflight` checks for RPC chain ID, deployed USDC and Memo contracts, recipient balance, public health, database writability, live payment mode, and the published service price.
@@ -73,8 +73,9 @@ The public receipt records the final transaction, payer, recipient, Memo ID, blo
 ## Hardening since the initial submission
 
 - The fixed `0.10 USDC` price is enforced in code and surfaced on `/api/health`, so a missing environment variable can no longer silently change the price.
+- Documents are preflighted and rejected before payment when no structured line item can be produced. The validated draft is stored server-side and released only after the Arc payment is verified.
 - An order that already recorded a verified payment can no longer be downgraded back into verification, so a failed job can always be retried without repaying.
-- A paid job that extracts no line items fails retryably instead of releasing an empty result.
+- Legacy paid jobs that extract no line items fail retryably instead of releasing an empty result.
 - CSV exports neutralize spreadsheet formulas, and the deterministic parser now handles space-aligned tables and European decimal amounts.
 - Unpaid, payment-rejected, and abandoned verification orders are removed after 24 hours so uploaded source text does not linger, while orders with a recorded transaction are kept.
 
