@@ -65,10 +65,18 @@ The repository contains:
 - 39 passing unit and integration tests.
 - 8 passing Playwright browser tests across desktop and a 390px mobile viewport.
 - A production build verified in CI and in the Railway Docker build.
-- `pnpm preflight` checks for RPC chain ID, deployed USDC and Memo contracts, recipient balance, public health, database writability, and live payment mode.
+- `pnpm preflight` checks for RPC chain ID, deployed USDC and Memo contracts, recipient balance, public health, database writability, live payment mode, and the published service price.
 - `pnpm smoke verify` checks a real transaction through the deployed verification and processing endpoints.
 
 The public receipt records the final transaction, payer, recipient, Memo ID, block, payment amounts, and verification mode.
+
+## Hardening since the initial submission
+
+- The fixed `0.10 USDC` price is enforced in code and surfaced on `/api/health`, so a missing environment variable can no longer silently change the price.
+- An order that already recorded a verified payment can no longer be downgraded back into verification, so a failed job can always be retried without repaying.
+- A paid job that extracts no line items fails retryably instead of releasing an empty result.
+- CSV exports neutralize spreadsheet formulas, and the deterministic parser now handles space-aligned tables and European decimal amounts.
+- Unpaid, payment-rejected, and abandoned verification orders are removed after 24 hours so uploaded source text does not linger, while orders with a recorded transaction are kept.
 
 ## Why it is worth continuing
 
@@ -78,7 +86,7 @@ Supplier quote normalization is a repeated, measurable workflow for small sourci
 
 - EOA wallets only for the Memo payment path.
 - One fixed price per quotation.
-- PDF and text input only.
+- Text-based PDF, TXT, and Markdown input only; scanned or image-only PDFs are not OCRed.
 - Manual refund handling for permanent processing failures.
 
 ## Submission checklist
