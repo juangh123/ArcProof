@@ -8,12 +8,14 @@ import {
   OrderConflictError,
   TransactionReuseError,
   claimOrderForProcessing,
-  cleanupStaleUnpaidOrders,
+  cleanupStaleOrders,
   completeOrder,
   createOrder,
   failOrder,
   getOrderById,
+  recordPaymentRejection,
   recordVerifiedPayment,
+  setOrderStatus,
 } from "@/lib/server/repository";
 import { SAMPLE_QUOTE_TEXT } from "@/lib/server/sample";
 import { extractQuoteHeuristically } from "@/lib/server/extract";
@@ -179,6 +181,28 @@ describe("order repository", () => {
     createTestOrder();
 
     vi.setSystemTime(new Date("2026-09-18T00:01:00.000Z"));
-    expect(cleanupStaleUnpaidOrders()).toBe(1);
+    expect(cleanupStaleOrders()).toBe(1);
+  });
+
+  it("cleans up rejected and abandoned orders but keeps paid orders", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-17T00:00:00.000Z"));
+
+    const rejected = createTestOrder();
+    setOrderStatus(rejected.id, "verifying");
+    recordPaymentRejection(rejected.id, "wrong amount");
+
+    const abandoned = createTestOrder();
+    setOrderStatus(abandoned.id, "verifying");
+
+    const paid = createTestOrder();
+    recordVerifiedPayment(paid.id, proofFor(`0x${"9".repeat(64)}`, paid));
+
+    vi.setSystemTime(new Date("2026-09-18T00:01:00.000Z"));
+
+    expect(cleanupStaleOrders()).toBe(2);
+    expect(getOrderById(rejected.id)).toBeNull();
+    expect(getOrderById(abandoned.id)).toBeNull();
+    expect(getOrderById(paid.id)?.status).toBe("payment_verified");
   });
 });

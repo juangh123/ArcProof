@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getArcRuntimeConfig } from "@/lib/arc/config";
 import { serializeOrder } from "@/lib/api/serialize";
 import {
-  cleanupStaleUnpaidOrders,
+  cleanupStaleOrders,
   createOrder,
   getOrderEvents,
 } from "@/lib/server/repository";
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    cleanupStaleUnpaidOrders();
+    cleanupStaleOrders();
     const formData = await request.formData();
     const useSample = formData.get("sample") === "true";
     let sourceName = "Northstar quotation sample";

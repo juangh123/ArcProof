@@ -78,6 +78,8 @@ function createDatabase() {
       ON orders(public_id);
     CREATE INDEX IF NOT EXISTS idx_orders_tx_hash
       ON orders(tx_hash);
+    CREATE INDEX IF NOT EXISTS idx_orders_status_created
+      ON orders(status, created_at);
     CREATE INDEX IF NOT EXISTS idx_order_events_order_id
       ON order_events(order_id, id);
   `);

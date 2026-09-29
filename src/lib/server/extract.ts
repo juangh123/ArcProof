@@ -8,6 +8,7 @@ import type {
 
 const MAX_EXTRACTED_CHARACTERS = 200_000;
 const MAX_AI_CHARACTERS = 60_000;
+const MAX_PDF_PAGES = 50;
 
 function hasPdfSignature(bytes: Uint8Array) {
   return (
@@ -414,8 +415,26 @@ export async function extractTextFromFile(file: File) {
       throw new Error("The uploaded file is not a valid PDF document.");
     }
 
-    const result = await extractText(bytes, { mergePages: true });
-    text = result.text;
+    let pdfText = "";
+    let totalPages = 0;
+
+    try {
+      const result = await extractText(bytes, { mergePages: true });
+      pdfText = result.text;
+      totalPages = result.totalPages;
+    } catch {
+      throw new Error(
+        "The PDF could not be read. It may be corrupted or password-protected.",
+      );
+    }
+
+    if (totalPages > MAX_PDF_PAGES) {
+      throw new Error(
+        `The PDF has too many pages (maximum ${MAX_PDF_PAGES}).`,
+      );
+    }
+
+    text = pdfText;
   } else if (isText) {
     if (!looksLikeText(bytes)) {
       throw new Error("The uploaded text file contains binary data.");
@@ -429,7 +448,11 @@ export async function extractTextFromFile(file: File) {
   const normalized = text.replace(/\u0000/g, "").trim();
 
   if (!normalized) {
-    throw new Error("No readable text was found in the document.");
+    throw new Error(
+      isPdf
+        ? "This PDF has no embedded text. Scanned or image-only PDFs are not supported; upload a text-based PDF or a plain-text export."
+        : "No readable text was found in the document.",
+    );
   }
 
   if (normalized.length > MAX_EXTRACTED_CHARACTERS) {

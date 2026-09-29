@@ -436,16 +436,21 @@ export function getStatusLabel(status: OrderStatus) {
   return orderStatusLabels[status];
 }
 
-export function cleanupStaleUnpaidOrders(maxAgeHours = 24) {
+export function cleanupStaleOrders(maxAgeHours = 24) {
   const cutoff = new Date(
     Date.now() - maxAgeHours * 60 * 60_000,
   ).toISOString();
 
+  // Remove abandoned, still-unpaid orders so their uploaded source text does
+  // not linger: never created a payment, had payment rejected, or was left in
+  // an interrupted verification. Orders with a recorded transaction are kept.
   return Number(
     getDatabase()
       .prepare(
         `DELETE FROM orders
-         WHERE status = 'awaiting_payment' AND created_at < ?`,
+         WHERE created_at < ?
+           AND tx_hash IS NULL
+           AND status IN ('awaiting_payment', 'payment_rejected', 'verifying')`,
       )
       .run(cutoff).changes,
   );

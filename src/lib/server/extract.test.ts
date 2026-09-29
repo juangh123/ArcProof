@@ -5,6 +5,32 @@ import {
 } from "@/lib/server/extract";
 import { SAMPLE_QUOTE_TEXT } from "@/lib/server/sample";
 
+function textlessPdfBytes() {
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << >> /Contents 4 0 R >>",
+    "<< /Length 0 >>\nstream\n\nendstream",
+  ];
+  let body = "%PDF-1.4\n";
+  const offsets: number[] = [];
+
+  objects.forEach((object, index) => {
+    offsets.push(body.length);
+    body += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefOffset = body.length;
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+
+  for (const offset of offsets) {
+    body += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  }
+
+  body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return new TextEncoder().encode(body);
+}
+
 describe("extractQuoteHeuristically", () => {
   it("extracts the sample quotation without an external AI key", () => {
     const quote = extractQuoteHeuristically(SAMPLE_QUOTE_TEXT);
@@ -102,6 +128,16 @@ describe("extractTextFromFile", () => {
 
     await expect(extractTextFromFile(file)).rejects.toThrow(
       "Only PDF, TXT, and Markdown",
+    );
+  });
+
+  it("reports scanned or image-only PDFs with an actionable message", async () => {
+    const file = new File([textlessPdfBytes()], "scan.pdf", {
+      type: "application/pdf",
+    });
+
+    await expect(extractTextFromFile(file)).rejects.toThrow(
+      "no embedded text",
     );
   });
 });
