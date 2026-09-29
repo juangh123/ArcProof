@@ -31,7 +31,6 @@ function createTestOrder() {
     recipientAddress: "0x1111111111111111111111111111111111111111",
     network: "testnet",
     chainId: 5_042_002,
-    isPublic: false,
   });
 }
 

@@ -61,8 +61,7 @@ function createDatabase() {
       verified_at TEXT,
       processed_at TEXT,
       processing_attempts INTEGER NOT NULL DEFAULT 0,
-      processing_started_at TEXT,
-      is_public INTEGER NOT NULL DEFAULT 0
+      processing_started_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS order_events (

@@ -28,7 +28,6 @@ function createTestOrder(sourceText: string) {
     recipientAddress: recipient,
     network: "testnet",
     chainId: 5_042_002,
-    isPublic: true,
   });
 }
 

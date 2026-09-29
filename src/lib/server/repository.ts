@@ -18,7 +18,6 @@ type CreateOrderInput = {
   recipientAddress: `0x${string}`;
   network: "mainnet" | "testnet";
   chainId: number;
-  isPublic?: boolean;
 };
 
 export class OrderConflictError extends Error {
@@ -106,7 +105,6 @@ function rowToOrder(row: Record<string, unknown>): OrderRecord {
     processingStartedAt: row.processing_started_at
       ? String(row.processing_started_at)
       : null,
-    isPublic: Boolean(row.is_public),
   };
 }
 
@@ -131,8 +129,8 @@ export function createOrder(input: CreateOrderInput) {
       `INSERT INTO orders (
         id, public_id, status, source_name, source_kind, source_text,
         payment_memo_id, amount_display, amount_atomic18, amount_atomic6,
-        recipient_address, network, chain_id, created_at, updated_at, is_public
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        recipient_address, network, chain_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -150,7 +148,6 @@ export function createOrder(input: CreateOrderInput) {
       input.chainId,
       timestamp,
       timestamp,
-      input.isPublic ? 1 : 0,
     );
 
   addOrderEvent(id, "order.created", {

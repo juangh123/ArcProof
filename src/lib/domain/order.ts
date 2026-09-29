@@ -52,7 +52,6 @@ export type OrderRecord = {
   processedAt: string | null;
   processingAttempts: number;
   processingStartedAt: string | null;
-  isPublic: boolean;
 };
 
 export type OrderEvent = {

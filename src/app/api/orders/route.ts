@@ -79,9 +79,6 @@ export async function POST(request: Request) {
       recipientAddress: config.recipientAddress,
       network: config.network,
       chainId: config.chainId,
-      // Receipts are shareable by design and expose payment facts and
-      // aggregate metadata only, so every order is a public receipt.
-      isPublic: true,
     });
     logEvent("order.created", {
       publicId: order.publicId,
