@@ -1,4 +1,8 @@
-import type { OrderEvent, OrderRecord } from "@/lib/domain/order";
+import {
+  getOrderExpiresAt,
+  type OrderEvent,
+  type OrderRecord,
+} from "@/lib/domain/order";
 
 export function serializeOrder(order: OrderRecord, events: OrderEvent[] = []) {
   return {
@@ -27,6 +31,7 @@ export function serializeOrder(order: OrderRecord, events: OrderEvent[] = []) {
     paymentProof: order.paymentProof,
     errorMessage: order.errorMessage,
     createdAt: order.createdAt,
+    expiresAt: getOrderExpiresAt(order.createdAt),
     updatedAt: order.updatedAt,
     verifiedAt: order.verifiedAt,
     processedAt: order.processedAt,

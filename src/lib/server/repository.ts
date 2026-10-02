@@ -36,6 +36,7 @@ export class TransactionReuseError extends Error {
 }
 
 const SQLITE_CONSTRAINT_UNIQUE = 2067;
+const ORDER_RETENTION_MS = 30 * 24 * 60 * 60_000;
 
 function now() {
   return new Date().toISOString();
@@ -437,21 +438,22 @@ export function getStatusLabel(status: OrderStatus) {
   return orderStatusLabels[status];
 }
 
-export function cleanupStaleOrders(maxAgeHours = 24) {
+export function cleanupStaleOrders(maxAgeMs = ORDER_RETENTION_MS) {
   const cutoff = new Date(
-    Date.now() - maxAgeHours * 60 * 60_000,
+    Date.now() - maxAgeMs,
   ).toISOString();
 
-  // Remove abandoned, still-unpaid orders so their uploaded source text does
-  // not linger: never created a payment, had payment rejected, or was left in
-  // an interrupted verification. Orders with a recorded transaction are kept.
+  // Payment requests expire in the browser after seven days. Keep the
+  // server-side record longer so a late verification or support request can
+  // still be resolved. Orders that ever reached verification are never
+  // deleted automatically because a transaction may already exist on Arc.
   return Number(
     getDatabase()
       .prepare(
         `DELETE FROM orders
          WHERE created_at < ?
            AND tx_hash IS NULL
-           AND status IN ('awaiting_payment', 'payment_rejected', 'verifying')`,
+           AND status IN ('awaiting_payment', 'payment_rejected')`,
       )
       .run(cutoff).changes,
   );

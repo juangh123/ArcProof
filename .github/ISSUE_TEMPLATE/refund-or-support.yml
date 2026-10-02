@@ -1,0 +1,43 @@
+name: Refund or payment support
+description: Report a paid order that needs manual processing or a refund review.
+title: "[Support] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only for a paid ArcProof order that needs manual review.
+        Never include wallet seed phrases, private keys, API keys, or private supplier documents.
+  - type: input
+    id: public_id
+    attributes:
+      label: Order ID
+      description: The public order ID shown in the workbench or receipt, for example AP-AC247758.
+      placeholder: AP-AC247758
+    validations:
+      required: true
+  - type: input
+    id: transaction_hash
+    attributes:
+      label: Arc transaction hash
+      description: The final Arc transaction hash for the payment.
+      placeholder: "0x..."
+    validations:
+      required: true
+  - type: dropdown
+    id: request_type
+    attributes:
+      label: Request type
+      options:
+        - Processing failed and needs a retry
+        - Payment was verified but no result was released
+        - Refund review requested
+        - Other payment issue
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include the visible error message and the approximate time of payment.
+    validations:
+      required: true

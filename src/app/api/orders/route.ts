@@ -13,11 +13,13 @@ import {
 } from "@/lib/server/extract";
 import { logEvent } from "@/lib/server/logger";
 import { getClientKey, orderCreateLimiter } from "@/lib/server/rate-limit";
+import {
+  MAX_FILE_SIZE,
+  isUploadTooLarge,
+} from "@/lib/server/upload-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const MAX_FILE_SIZE = 8 * 1024 * 1024;
 
 export async function POST(request: Request) {
   const config = getArcRuntimeConfig();
@@ -42,6 +44,13 @@ export async function POST(request: Request) {
           "ARC_RECIPIENT_ADDRESS is not configured. Add a valid Arc address before creating a payment order.",
       },
       { status: 503 },
+    );
+  }
+
+  if (isUploadTooLarge(request)) {
+    return NextResponse.json(
+      { error: "The request is too large. Upload a document up to 8 MB." },
+      { status: 413 },
     );
   }
 

@@ -77,3 +77,11 @@ The frontend never marks an order as fulfilled by itself.
 ## Reviewer note
 
 If you create a new order, it will require a real `0.10 USDC` payment on Arc Mainnet. The existing completed receipt and transaction hash are the recorded evidence for reviewers who only need to inspect the final result.
+
+## Suggested recording timeline
+
+- `0:00-0:20`: Show the live app, `Chain 5042`, `Live settlement`, and the health endpoint.
+- `0:20-1:00`: Click `Use sample quotation` and show the order-specific Memo ID and fixed price.
+- `1:00-1:50`: Open the existing completed order and show the transaction, payer, recipient, Memo ID, and verification events.
+- `1:50-2:20`: Open the CSV result and briefly explain the structured output.
+- `2:20-2:50`: Summarize the server-side verification boundary and the Arc-specific EIP-7708 handling.

@@ -9,6 +9,7 @@ import type {
 const MAX_EXTRACTED_CHARACTERS = 200_000;
 const MAX_AI_CHARACTERS = 60_000;
 const MAX_PDF_PAGES = 50;
+const DEFAULT_OPENAI_MODEL = "gpt-5.6-terra";
 
 function hasPdfSignature(bytes: Uint8Array) {
   return (
@@ -313,7 +314,7 @@ async function extractQuoteWithAi(text: string): Promise<QuoteResult> {
     apiKey: process.env.OPENAI_API_KEY,
     timeout: 30_000,
   });
-  const model = process.env.OPENAI_MODEL ?? "gpt-5-mini";
+  const model = process.env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
   const completion = await client.chat.completions.create({
     model,
     temperature: 0,

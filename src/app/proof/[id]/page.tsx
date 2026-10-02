@@ -187,7 +187,7 @@ export default async function ProofPage({
             </>
           )}
 
-          <ResumeProcessing orderId={order.id} status={order.status} />
+          <ResumeProcessing publicId={order.publicId} status={order.status} />
 
           <div className="event-section">
             <div className="section-title">

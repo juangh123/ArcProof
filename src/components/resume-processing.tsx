@@ -6,10 +6,10 @@ import { useState } from "react";
 import type { OrderStatus } from "@/lib/domain/order";
 
 export function ResumeProcessing({
-  orderId,
+  publicId,
   status,
 }: {
-  orderId: string;
+  publicId: string;
   status: OrderStatus;
 }) {
   const router = useRouter();
@@ -30,7 +30,7 @@ export function ResumeProcessing({
 
     try {
       const response = await fetch(
-        `/api/orders/${encodeURIComponent(orderId)}/process`,
+        `/api/proof/${encodeURIComponent(publicId)}/resume`,
         { method: "POST" },
       );
       const payload = (await response.json().catch(() => ({}))) as {

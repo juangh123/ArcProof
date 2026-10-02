@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PaymentProof } from "@/lib/domain/order";
+import { ORDER_PAYMENT_WINDOW_MS } from "@/lib/domain/order";
+import { serializeOrder } from "@/lib/api/serialize";
 import { resetDatabaseForTests } from "@/lib/server/db";
 import {
   OrderConflictError,
@@ -174,16 +176,22 @@ describe("order repository", () => {
     expect(getOrderById(order.id)?.status).toBe("completed");
   });
 
-  it("cleans up unpaid orders after 24 hours", () => {
+  it("keeps unpaid orders through the payment window and cleans them up after retention", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-17T00:00:00.000Z"));
     createTestOrder();
 
     vi.setSystemTime(new Date("2026-09-18T00:01:00.000Z"));
+    expect(cleanupStaleOrders()).toBe(0);
+
+    vi.setSystemTime(new Date("2026-10-16T23:59:00.000Z"));
+    expect(cleanupStaleOrders()).toBe(0);
+
+    vi.setSystemTime(new Date("2026-10-17T00:01:00.000Z"));
     expect(cleanupStaleOrders()).toBe(1);
   });
 
-  it("cleans up rejected and abandoned orders but keeps paid orders", () => {
+  it("cleans up rejected orders after retention but never deletes verifying or paid orders", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-17T00:00:00.000Z"));
 
@@ -197,11 +205,21 @@ describe("order repository", () => {
     const paid = createTestOrder();
     recordVerifiedPayment(paid.id, proofFor(`0x${"9".repeat(64)}`, paid));
 
-    vi.setSystemTime(new Date("2026-09-18T00:01:00.000Z"));
+    vi.setSystemTime(new Date("2026-10-17T00:01:00.000Z"));
 
-    expect(cleanupStaleOrders()).toBe(2);
+    expect(cleanupStaleOrders()).toBe(1);
     expect(getOrderById(rejected.id)).toBeNull();
-    expect(getOrderById(abandoned.id)).toBeNull();
+    expect(getOrderById(abandoned.id)?.status).toBe("verifying");
     expect(getOrderById(paid.id)?.status).toBe("payment_verified");
+  });
+
+  it("exposes the seven-day payment expiry without shortening server retention", () => {
+    const order = createTestOrder();
+    const serialized = serializeOrder(order);
+
+    expect(
+      new Date(serialized.expiresAt).getTime() -
+        new Date(order.createdAt).getTime(),
+    ).toBe(ORDER_PAYMENT_WINDOW_MS);
   });
 });

@@ -20,7 +20,8 @@ https://github.com/juangh123
 
 https://dorahacks.io/buidl/49114
 
-Status: Under review for Arc Microgrants.
+The BUIDL is published. Confirm the separate Arc Microgrants event submission on
+the event Builds page before treating it as under review.
 
 ## Short description
 
@@ -62,7 +63,7 @@ The result is released only after final settlement. Arc's deterministic finality
 
 The repository contains:
 
-- 42 passing unit and integration tests.
+- 50 passing unit and integration tests.
 - 8 passing Playwright browser tests across desktop and a 390px mobile viewport.
 - A production build verified in CI and in the Railway Docker build.
 - `pnpm preflight` checks for RPC chain ID, deployed USDC and Memo contracts, recipient balance, public health, database writability, live payment mode, and the published service price.
@@ -77,7 +78,11 @@ The public receipt records the final transaction, payer, recipient, Memo ID, blo
 - An order that already recorded a verified payment can no longer be downgraded back into verification, so a failed job can always be retried without repaying.
 - Legacy paid jobs that extract no line items fail retryably instead of releasing an empty result.
 - CSV exports neutralize spreadsheet formulas, and the deterministic parser now handles space-aligned tables and European decimal amounts.
-- Unpaid, payment-rejected, and abandoned verification orders are removed after 24 hours so uploaded source text does not linger, while orders with a recorded transaction are kept.
+- Payment requests expire for new payments after seven days. Unpaid and payment-rejected records are retained server-side for up to 30 days, while orders that reached verification are retained for manual resolution.
+- A submitted transaction is now locked as pending in the workbench, so a user can resume verification instead of paying the same order twice.
+- Orders from a previous network or receiving address are rejected before the wallet is asked to sign, preventing a stale order from paying the wrong target.
+- Public receipt recovery now uses the public order ID and a dedicated resume endpoint instead of exposing the internal order UUID.
+- The optional extraction model default moved from the deprecated `gpt-5-mini` to the documented `gpt-5.6-terra`.
 
 ## Why it is worth continuing
 
@@ -99,3 +104,6 @@ Supplier quote normalization is a repeated, measurable workflow for small sourci
 - [x] Public proof URL.
 - [x] CSV output.
 - [x] Automated tests and production deployment.
+- [ ] Arc Microgrants event Builds page shows ArcProof after `Submit Build`.
+- [ ] Three-minute demo video attached to the DoraHacks BUIDL.
+- [ ] `v0.2.0` GitHub release published from the current `master`.

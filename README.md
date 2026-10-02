@@ -1,5 +1,8 @@
 # ArcProof
 
+[![CI](https://github.com/juangh123/ArcProof/actions/workflows/ci.yml/badge.svg)](https://github.com/juangh123/ArcProof/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ArcProof turns supplier quotation documents into structured purchasing data and releases the result only after a final USDC payment is verified on Arc.
 
 The project is built for freelancers, small sourcing teams, and agent workflows that need a complete payment-to-delivery loop without a separate indexer or reconciliation spreadsheet.
@@ -7,7 +10,7 @@ The project is built for freelancers, small sourcing teams, and agent workflows 
 ## Live demo
 
 - Application: https://arcproof-production.up.railway.app
-- Arc Microgrants submission (under review): https://dorahacks.io/buidl/49114
+- DoraHacks BUIDL: https://dorahacks.io/buidl/49114
 - Completed Arc Mainnet order: https://arcproof-production.up.railway.app/proof/AP-AC247758
 - Mainnet transaction: `0x780b08710fa38e12d35a117918508d2bead4f3e6c88bab203e48dd501d36fe80`
 - CSV result: https://arcproof-production.up.railway.app/api/orders/fc116601-6775-46aa-842a-c8d5eed5304a/csv
@@ -85,6 +88,16 @@ Open `http://localhost:3000`.
 
 The checked-in environment template uses Arc Testnet and fixture payment mode for a complete local demonstration without a wallet. Fixture mode is disabled in production and when `ARC_NETWORK=mainnet`.
 
+On Windows without Developer Mode, a local `pnpm build` can skip the
+standalone symlink packaging step:
+
+```powershell
+$env:NEXT_STANDALONE="false"
+pnpm build
+```
+
+CI and the production Docker image leave standalone output enabled.
+
 ## Environment
 
 | Variable | Required | Purpose |
@@ -96,7 +109,7 @@ The checked-in environment template uses Arc Testnet and fixture payment mode fo
 | `ARC_EXPLORER_URL` | No | Override the default explorer |
 | `ARC_QUOTE_PRICE_USDC` | No | Fixed service price, default `0.10` |
 | `OPENAI_API_KEY` | No | Enables model extraction |
-| `OPENAI_MODEL` | No | Model name, default `gpt-5-mini` |
+| `OPENAI_MODEL` | No | Model name, default `gpt-5.6-terra` |
 | `ARCPROOF_DATA_DIR` | No | SQLite directory, default `./data` |
 | `ARCPROOF_DATABASE_PATH` | No | Full SQLite file path override |
 
@@ -171,7 +184,7 @@ PUBLIC_BASE_URL=https://your-railway-domain \
 pnpm smoke verify <ORDER_ID> <TRANSACTION_HASH>
 ```
 
-The unit suite covers payment transaction uniqueness, paid-draft release, pre-payment extraction rejection, failed-job retry, processing lease fencing, stale-order cleanup, request rate limiting, file validation, wrong chain/Memo/recipient/amount cases, duplicate Arc event rejection, the two-event Arc USDC model, quotation extraction, monetary consistency, price defaulting, empty-result handling, scanned-PDF detection, and CSV formula neutralization.
+The unit suite currently contains 50 passing tests and covers payment transaction uniqueness, pending-payment recovery, paid-draft release, pre-payment extraction rejection, failed-job retry, processing lease fencing, order expiry and retention, stale payment-target rejection, request rate limiting and memory bounds, upload-size preflight, file validation, wrong chain/Memo/recipient/amount cases, duplicate Arc event rejection, the two-event Arc USDC model, quotation extraction, monetary consistency, price defaulting, empty-result handling, scanned-PDF detection, and CSV formula neutralization.
 
 The browser suite covers the complete sample flow and public receipt on desktop and a 390px mobile viewport.
 
@@ -179,7 +192,8 @@ The browser suite covers the complete sample flow and public receipt on desktop 
 
 - Uploaded source files are not stored.
 - Scanned or image-only PDFs are not OCRed; a text-based PDF or plain-text export is required.
-- Extracted source text is discarded after preflight validation; the validated draft is held server-side until payment.
+- Extracted source text is discarded after preflight validation; the validated draft is held server-side until payment or expiry.
+- Payment requests expire for new payments after seven days. Unpaid records are retained server-side for up to 30 days, while orders that reached verification are retained for manual resolution.
 - The public proof page exposes payment facts and aggregate result metadata only.
 - The service does not provide custody, exchange, tax advice, or accounting services.
 - The first version uses one fixed price, one application instance, and EOA wallets only.
@@ -192,3 +206,8 @@ The browser suite covers the complete sample flow and public receipt on desktop 
 - [Operations](docs/OPERATIONS.md)
 - [Submission](docs/SUBMISSION.md)
 - [Three-minute demo](docs/DEMO.md)
+- [v0.2.0 release notes](docs/RELEASE_NOTES_v0.2.0.md)
+
+## License
+
+MIT

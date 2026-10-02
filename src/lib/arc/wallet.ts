@@ -46,14 +46,26 @@ export async function payOrderWithArc(input: {
     amountDisplay: string;
     paymentMemoId: Hex;
     publicId: string;
+    recipientAddress: Address;
+    network: "mainnet" | "testnet";
+    chainId: number;
   };
 }): Promise<Hex> {
   if (!window.ethereum) {
     throw new Error("No browser wallet was found.");
   }
 
-  if (!input.config.recipientAddress) {
-    throw new Error("The Arc receiving address is not configured.");
+  const orderRecipient = getAddress(input.order.recipientAddress);
+
+  if (
+    input.order.network !== input.config.network ||
+    input.order.chainId !== input.config.chainId ||
+    !input.config.recipientAddress ||
+    orderRecipient !== getAddress(input.config.recipientAddress)
+  ) {
+    throw new Error(
+      "This payment request was created for a different Arc network or receiving address. Create a new order before paying.",
+    );
   }
 
   const chain = toArcChain(input.config);

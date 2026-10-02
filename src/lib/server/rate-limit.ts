@@ -6,16 +6,50 @@ type RateLimitEntry = {
 export function createRateLimiter(options: {
   limit: number;
   windowMs: number;
+  maxEntries?: number;
+  sweepIntervalMs?: number;
 }) {
   const entries = new Map<string, RateLimitEntry>();
+  const maxEntries = options.maxEntries ?? 10_000;
+  const sweepIntervalMs = Math.max(
+    1_000,
+    options.sweepIntervalMs ?? Math.min(options.windowMs, 60_000),
+  );
+  let nextSweepAt = 0;
+
+  function prune(now: number) {
+    if (now >= nextSweepAt) {
+      for (const [key, entry] of entries) {
+        if (entry.resetAt <= now) {
+          entries.delete(key);
+        }
+      }
+
+      nextSweepAt = now + sweepIntervalMs;
+    }
+
+    // Bound memory even when every request presents a different client key.
+    // Map iteration preserves insertion order, so this evicts the oldest keys.
+    while (entries.size > maxEntries) {
+      const oldestKey = entries.keys().next().value;
+
+      if (typeof oldestKey !== "string") {
+        break;
+      }
+
+      entries.delete(oldestKey);
+    }
+  }
 
   return {
     check(key: string, now = Date.now()) {
+      prune(now);
       const current = entries.get(key);
 
       if (!current || current.resetAt <= now) {
         const resetAt = now + options.windowMs;
         entries.set(key, { count: 1, resetAt });
+        prune(now);
 
         return {
           allowed: true,
@@ -49,6 +83,11 @@ export function createRateLimiter(options: {
 
     clear() {
       entries.clear();
+      nextSweepAt = 0;
+    },
+
+    size() {
+      return entries.size;
     },
   };
 }

@@ -78,7 +78,7 @@ awaiting_payment
 - A failed processing job remains linked to its verified payment and can be retried without repaying.
 - The browser stores the active order identifier and any pending transaction hash locally, so a reload can resume verification and processing without creating a second payment.
 - A public receipt exposes a resume-processing action for verified orders whose fulfillment was interrupted.
-- Unpaid, payment-rejected, or abandoned verification orders older than 24 hours are removed during new order creation; orders with a recorded transaction are kept.
+- Payment requests expire for new payments after seven days. Unpaid and payment-rejected records are retained server-side for up to 30 days; orders that reached verification are never deleted automatically because a transaction may already exist on Arc.
 - Order creation is limited to ten requests per client in a ten-minute window per application instance. Verification and processing requests are rate limited per client as well.
 - A job that finds no line items is kept as a retryable failure instead of releasing an empty paid result.
 

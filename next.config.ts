@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
+// Standalone output is required for the production Docker image. It can be
+// disabled for a local Windows build when developer-mode symlinks are
+// unavailable; CI and Railway keep the default.
+const standaloneOutput = process.env.NEXT_STANDALONE !== "false";
+
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: standaloneOutput ? "standalone" : undefined,
   poweredByHeader: false,
   reactStrictMode: true,
   async headers() {

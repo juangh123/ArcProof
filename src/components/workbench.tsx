@@ -21,7 +21,10 @@ import type { ChangeEvent } from "react";
 import type { PublicArcConfig } from "@/lib/arc/config";
 import { payOrderWithArc } from "@/lib/arc/wallet";
 import type { SerializedOrder } from "@/lib/api/serialize";
-import { orderStatusLabels } from "@/lib/domain/order";
+import {
+  ORDER_PAYMENT_WINDOW_MS,
+  orderStatusLabels,
+} from "@/lib/domain/order";
 import { QuoteResultView } from "@/components/quote-result";
 
 type ApiResponse = {
@@ -38,7 +41,8 @@ type StoredOrder = {
 };
 
 const ACTIVE_ORDER_KEY = "arcproof.active-order.v1";
-const ACTIVE_ORDER_MAX_AGE = 7 * 24 * 60 * 60_000;
+const ACTIVE_ORDER_MAX_AGE = ORDER_PAYMENT_WINDOW_MS;
+const PENDING_ORDER_MAX_AGE = 30 * 24 * 60 * 60_000;
 
 class ApiRequestError extends Error {
   constructor(
@@ -78,12 +82,15 @@ function readStoredOrder(): StoredOrder | null {
     }
 
     const stored = JSON.parse(raw) as Partial<StoredOrder>;
-    const isFresh =
-      typeof stored.savedAt === "number" &&
-      Date.now() - stored.savedAt < ACTIVE_ORDER_MAX_AGE;
     const hasValidHash =
       stored.txHash === undefined ||
       /^0x[0-9a-f]{64}$/i.test(stored.txHash);
+    const maxAge = stored.txHash
+      ? PENDING_ORDER_MAX_AGE
+      : ACTIVE_ORDER_MAX_AGE;
+    const isFresh =
+      typeof stored.savedAt === "number" &&
+      Date.now() - stored.savedAt < maxAge;
     const savedAt = stored.savedAt;
 
     if (
@@ -266,10 +273,36 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
   const [isPaying, setIsPaying] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [pendingTxHash, setPendingTxHash] = useState<`0x${string}` | null>(
+    null,
+  );
+  const [now, setNow] = useState(() => Date.now());
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const step = currentStep(order);
   const paymentReady = Boolean(config.configured && order);
+  const paymentExpired = Boolean(
+    order && now >= new Date(order.expiresAt).getTime(),
+  );
+  const paymentTargetMatches = Boolean(
+    order &&
+      config.recipientAddress &&
+      order.network === config.network &&
+      order.chainId === config.chainId &&
+      order.recipientAddress.toLowerCase() ===
+        config.recipientAddress.toLowerCase(),
+  );
+  const supportUrl = order
+    ? `https://github.com/juangh123/ArcProof/issues/new?template=refund-or-support.yml&title=${encodeURIComponent(
+        `[Support] ${order.publicId}`,
+      )}`
+    : "";
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const storedOrder = readStoredOrder();
@@ -292,19 +325,22 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
           return;
         }
 
-        setOrder(restoredOrder);
-        storeOrder(restoredOrder.id, stored.txHash);
+        const pendingHash =
+          restoredOrder.status === "awaiting_payment" ||
+          restoredOrder.status === "verifying"
+            ? stored.txHash
+            : undefined;
 
-        if (
-          stored.txHash &&
-          (restoredOrder.status === "awaiting_payment" ||
-            restoredOrder.status === "verifying")
-        ) {
+        setOrder(restoredOrder);
+        setPendingTxHash(pendingHash ?? null);
+        storeOrder(restoredOrder.id, pendingHash);
+
+        if (pendingHash) {
           setIsPaying(true);
           setNotice("Resuming Arc payment verification.");
           restoredOrder = await requestPaymentVerification(
             restoredOrder.id,
-            stored.txHash,
+            pendingHash,
           );
 
           if (!active) {
@@ -312,6 +348,7 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
           }
 
           setOrder(restoredOrder);
+          setPendingTxHash(null);
           storeOrder(restoredOrder.id);
           setNotice("Arc payment verified.");
         }
@@ -407,6 +444,7 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
       }
 
       setOrder(payload.order);
+      setPendingTxHash(null);
       storeOrder(payload.order.id);
       setNotice("Payment request created.");
     } catch (requestError) {
@@ -458,9 +496,53 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
   async function verifyPayment(orderId: string, txHash: `0x${string}`) {
     const verifiedOrder = await requestPaymentVerification(orderId, txHash);
     setOrder(verifiedOrder);
+    setPendingTxHash(null);
     storeOrder(verifiedOrder.id);
     setNotice("Arc payment verified.");
     await processOrder(orderId, verifiedOrder);
+  }
+
+  function handlePaymentError(
+    paymentError: unknown,
+    submittedTxHash: `0x${string}` | null,
+  ) {
+    if (
+      paymentError instanceof ApiRequestError &&
+      paymentError.order
+    ) {
+      setOrder(paymentError.order);
+
+      if (paymentError.order.status === "payment_rejected") {
+        setPendingTxHash(null);
+        storeOrder(paymentError.order.id);
+      } else if (submittedTxHash) {
+        setPendingTxHash(submittedTxHash);
+        storeOrder(paymentError.order.id, submittedTxHash);
+      }
+    }
+
+    setError(
+      paymentError instanceof Error
+        ? paymentError.message
+        : "The Arc payment could not be completed.",
+    );
+  }
+
+  async function continueVerification() {
+    if (!order || !pendingTxHash) {
+      return;
+    }
+
+    setIsPaying(true);
+    setError("");
+
+    try {
+      await verifyPayment(order.id, pendingTxHash);
+    } catch (verificationError) {
+      handlePaymentError(verificationError, pendingTxHash);
+    } finally {
+      setIsPaying(false);
+    }
   }
 
   async function payWithArc() {
@@ -468,32 +550,30 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
       return;
     }
 
+    if (paymentExpired) {
+      setError(
+        "This payment request expired. Start a new order to request a fresh payment.",
+      );
+      return;
+    }
+
     setIsPaying(true);
     setError("");
     setNotice("Approve the USDC payment in your wallet.");
+    let submittedTxHash: `0x${string}` | null = null;
 
     try {
       const txHash =
         config.paymentMode === "fixture"
           ? createFixtureHash()
           : await payOrderWithArc({ config, order });
+      submittedTxHash = txHash;
+      setPendingTxHash(txHash);
       storeOrder(order.id, txHash);
       setNotice("Transaction submitted to Arc.");
       await verifyPayment(order.id, txHash);
     } catch (paymentError) {
-      if (
-        paymentError instanceof ApiRequestError &&
-        paymentError.order
-      ) {
-        setOrder(paymentError.order);
-        storeOrder(paymentError.order.id);
-      }
-
-      setError(
-        paymentError instanceof Error
-          ? paymentError.message
-          : "The Arc payment could not be completed.",
-      );
+      handlePaymentError(paymentError, submittedTxHash);
     } finally {
       setIsPaying(false);
     }
@@ -507,6 +587,7 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
 
   function resetOrder() {
     clearStoredOrder();
+    setPendingTxHash(null);
     setOrder(null);
     setFile(null);
     setNotice("");
@@ -655,30 +736,65 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
               <div>
                 <dt>Recipient</dt>
                 <dd className="mono">
-                  {shorten(config.recipientAddress, 7)}
+                  {shorten(order.recipientAddress, 7)}
                 </dd>
               </div>
             </dl>
 
             {order.status === "awaiting_payment" ||
             order.status === "payment_rejected" ? (
-              <button
-                className="button button-primary button-wide"
-                type="button"
-                onClick={payWithArc}
-                disabled={
-                  !paymentReady || isPaying || isProcessing || isRestoring
-                }
-              >
-                {isPaying ? (
-                  <Loader2 className="spin" size={17} />
-                ) : (
-                  <WalletCards size={17} />
-                )}
-                {config.paymentMode === "fixture"
-                  ? "Verify fixture payment"
-                  : `Pay ${order.amountDisplay} USDC`}
-              </button>
+              pendingTxHash ? (
+                <>
+                  <button
+                    className="button button-primary button-wide"
+                    type="button"
+                    onClick={continueVerification}
+                    disabled={isPaying || isProcessing || isRestoring}
+                  >
+                    {isPaying ? (
+                      <Loader2 className="spin" size={17} />
+                    ) : (
+                      <RefreshCw size={17} />
+                    )}
+                    Continue verification
+                  </button>
+                  <div className="inline-alert inline-alert-info">
+                    <AlertCircle size={16} />
+                    A transaction was already submitted for this order. Resume
+                    verification instead of paying again.
+                  </div>
+                </>
+              ) : !paymentTargetMatches ? (
+                <div className="inline-alert inline-alert-error">
+                  <AlertCircle size={16} />
+                  This order was created for a different Arc network or
+                  receiving address. Start a new order before paying.
+                </div>
+              ) : paymentExpired ? (
+                <div className="inline-alert inline-alert-error">
+                  <AlertCircle size={16} />
+                  This payment request expired after seven days. Start a new
+                  order to request a fresh payment.
+                </div>
+              ) : (
+                <button
+                  className="button button-primary button-wide"
+                  type="button"
+                  onClick={payWithArc}
+                  disabled={
+                    !paymentReady || isPaying || isProcessing || isRestoring
+                  }
+                >
+                  {isPaying ? (
+                    <Loader2 className="spin" size={17} />
+                  ) : (
+                    <WalletCards size={17} />
+                  )}
+                  {config.paymentMode === "fixture"
+                    ? "Verify fixture payment"
+                    : `Pay ${order.amountDisplay} USDC`}
+                </button>
+              )
             ) : null}
 
             {(order.status === "failed" ||
@@ -699,6 +815,18 @@ export function Workbench({ config }: { config: PublicArcConfig }) {
                   ? "Retry processing"
                   : "Resume processing"}
               </button>
+            ) : null}
+
+            {order.status === "failed" ? (
+              <a
+                className="text-button"
+                href={supportUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <AlertCircle size={14} />
+                Open a payment support request
+              </a>
             ) : null}
 
             {!config.configured ? (

@@ -9,6 +9,16 @@ export type OrderStatus =
   | "completed"
   | "failed";
 
+// Payment requests expire after seven days. Unpaid records are retained for
+// longer on the server so a late-arriving verification can still be resolved.
+export const ORDER_PAYMENT_WINDOW_MS = 7 * 24 * 60 * 60_000;
+
+export function getOrderExpiresAt(createdAt: string) {
+  return new Date(
+    new Date(createdAt).getTime() + ORDER_PAYMENT_WINDOW_MS,
+  ).toISOString();
+}
+
 export type PaymentProof = {
   txHash: `0x${string}`;
   blockNumber: string;
