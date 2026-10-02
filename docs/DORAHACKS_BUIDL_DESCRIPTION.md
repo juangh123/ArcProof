@@ -1,5 +1,7 @@
 # ArcProof
 
+![ArcProof Mainnet proof](https://raw.githubusercontent.com/juangh123/ArcProof/master/docs/assets/arcproof-cover.png)
+
 ## The problem
 
 Supplier quotations still arrive as PDFs, email bodies, and inconsistent
