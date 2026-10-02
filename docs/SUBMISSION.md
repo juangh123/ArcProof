@@ -20,8 +20,10 @@ https://github.com/juangh123
 
 https://dorahacks.io/buidl/49114
 
-The BUIDL is published. Confirm the separate Arc Microgrants event submission on
-the event Builds page before treating it as under review.
+Status: Under review for Arc Microgrants. The signed-in event Builds page shows
+`Your Build` -> `ArcProof` -> `Under Review`. The public Builds list and hub API
+can remain at `count: 0` until DoraHacks approves the submission for public
+display.
 
 ## Short description
 
@@ -104,6 +106,7 @@ Supplier quote normalization is a repeated, measurable workflow for small sourci
 - [x] Public proof URL.
 - [x] CSV output.
 - [x] Automated tests and production deployment.
-- [ ] Arc Microgrants event Builds page shows ArcProof after `Submit Build`.
+- [x] Arc Microgrants event submission confirmed: Builds page shows `Your Build`
+  -> `ArcProof` -> `Under Review`.
 - [ ] Three-minute demo video attached to the DoraHacks BUIDL.
-- [ ] `v0.2.0` GitHub release published from the current `master`.
+- [x] `v0.2.0` GitHub release published.

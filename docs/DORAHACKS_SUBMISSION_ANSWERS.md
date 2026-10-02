@@ -30,9 +30,13 @@ https://dorahacks.io/hackathon/arc-microgrants/build
     and a 390px mobile viewport · CI is green on `master` · `pnpm preflight`
     and the mainnet smoke-verification path are documented in the repository.
 
-After submitting, confirm:
+Submission status:
 
-- The event Builds page lists ArcProof.
-- `https://dorahacks.io/api/v1/hub/hackathons/2238/buidls` returns
-  `"count": 1` or greater.
-- The BUIDL description says 50 tests, not 42.
+- The signed-in event Builds page shows `Your Build` -> `ArcProof` ->
+  `Under Review`.
+- The public Builds list and
+  `https://dorahacks.io/api/v1/hub/hackathons/2238/buidls` can remain at
+  `"count": 0` until DoraHacks approves the submission for public display. Do
+  not treat that public count as a submission check.
+- Remaining improvement: update the BUIDL description to 50 tests and attach
+  the demo video.
