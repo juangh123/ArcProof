@@ -54,7 +54,7 @@ Show:
 
 Open the CSV:
 
-https://arcproof-production.up.railway.app/api/orders/fc116601-6775-46aa-842a-c8d5eed5304a/csv
+https://arcproof-production.up.railway.app/api/proof/AP-AC247758/csv
 
 The recorded transaction is:
 
@@ -85,3 +85,13 @@ If you create a new order, it will require a real `0.10 USDC` payment on Arc Mai
 - `1:00-1:50`: Open the existing completed order and show the transaction, payer, recipient, Memo ID, and verification events.
 - `1:50-2:20`: Open the CSV result and briefly explain the structured output.
 - `2:20-2:50`: Summarize the server-side verification boundary and the Arc-specific EIP-7708 handling.
+
+## Narration script
+
+- `0:00`: "Supplier quotations still get copied into spreadsheets by hand. ArcProof turns them into validated line items and settles the service fee on Arc."
+- `0:20`: "I can upload a PDF or use the sample. The server validates the document before any payment request is created."
+- `0:45`: "This order has an order-specific Memo ID and a fixed price of 0.10 USDC. The wallet calls Memo.memo with a nested USDC transfer, so the payment is bound to this order."
+- `1:15`: "This completed receipt is a real Arc Mainnet payment. It shows the payer, recipient, Memo ID, block, transaction hash, and the EIP-7708 event representation."
+- `1:50`: "Only after final settlement does the server release the structured result. The public CSV contains the three extracted quotation lines."
+- `2:10`: "Fulfillment is not based on the browser's success state. The server independently verifies the final receipt, Memo binding, recipient, amount, event model, and transaction uniqueness."
+- `2:30`: "ArcProof is live on Arc Mainnet, with a public proof, CSV output, automated tests, and a reproducible deployment."

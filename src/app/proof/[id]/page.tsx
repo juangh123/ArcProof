@@ -5,6 +5,7 @@ import {
   Blocks,
   CheckCircle2,
   Clock3,
+  Download,
   FileCheck2,
   ShieldCheck,
 } from "lucide-react";
@@ -188,6 +189,18 @@ export default async function ProofPage({
           )}
 
           <ResumeProcessing publicId={order.publicId} status={order.status} />
+
+          {order.status === "completed" ? (
+            <div className="proof-download">
+              <a
+                className="button button-secondary"
+                href={`/api/proof/${order.publicId}/csv`}
+              >
+                <Download size={16} />
+                Download CSV
+              </a>
+            </div>
+          ) : null}
 
           <div className="event-section">
             <div className="section-title">

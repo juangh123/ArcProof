@@ -41,7 +41,7 @@ test("completes the paid quote flow and opens a public receipt", async ({
   });
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("link", { name: "CSV" }).click();
+  await page.getByRole("link", { name: "CSV", exact: true }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^AP-[A-F0-9]{8}\.csv$/);
 

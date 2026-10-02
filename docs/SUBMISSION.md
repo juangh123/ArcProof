@@ -25,6 +25,10 @@ Status: Under review for Arc Microgrants. The signed-in event Builds page shows
 can remain at `count: 0` until DoraHacks approves the submission for public
 display.
 
+Optimized reviewer copy for the BUIDL description is maintained in
+[DORAHACKS_BUIDL_DESCRIPTION.md](DORAHACKS_BUIDL_DESCRIPTION.md). The five-minute
+review path is in [REVIEWER_GUIDE.md](REVIEWER_GUIDE.md).
+
 ## Short description
 
 ArcProof turns supplier quotation documents into structured, validated line-item data. A customer uploads a quote, sees the fixed USDC price, pays through the Arc Memo contract, and receives the extraction result only after the server independently verifies the final Arc transaction.
@@ -54,7 +58,7 @@ The result is released only after final settlement. Arc's deterministic finality
 - Transaction: https://explorer.arc.io/tx/0x780b08710fa38e12d35a117918508d2bead4f3e6c88bab203e48dd501d36fe80
 - Transaction hash: `0x780b08710fa38e12d35a117918508d2bead4f3e6c88bab203e48dd501d36fe80`
 - Public receipt: https://arcproof-production.up.railway.app/proof/AP-AC247758
-- CSV output: https://arcproof-production.up.railway.app/api/orders/fc116601-6775-46aa-842a-c8d5eed5304a/csv
+- CSV output: https://arcproof-production.up.railway.app/api/proof/AP-AC247758/csv
 - Network: Arc Mainnet, Chain ID `5042`
 - Settlement: `0.10 USDC`
 - Result: three structured quotation lines

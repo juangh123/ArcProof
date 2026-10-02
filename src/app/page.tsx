@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Blocks, FileCheck2 } from "lucide-react";
+import { Blocks, Code, FileCheck2, ReceiptText, Table2 } from "lucide-react";
 import { Workbench } from "@/components/workbench";
 import { getPublicArcConfig } from "@/lib/arc/config";
 
@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 
 export default function Home() {
   const config = getPublicArcConfig();
+  const reviewProofId =
+    process.env.NEXT_PUBLIC_REVIEW_PROOF_ID?.trim() || "AP-AC247758";
 
   return (
     <div className="app-frame">
@@ -53,6 +55,29 @@ export default function Home() {
         </div>
 
         <Workbench config={config} />
+
+        <nav className="reviewer-path" aria-label="Submission review links">
+          <a
+            href={`/proof/${reviewProofId}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ReceiptText size={15} />
+            Completed Arc Mainnet receipt
+          </a>
+          <a href={`/api/proof/${reviewProofId}/csv`}>
+            <Table2 size={15} />
+            CSV result
+          </a>
+          <a
+            href="https://github.com/juangh123/ArcProof"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Code size={15} />
+            Source and tests
+          </a>
+        </nav>
       </main>
     </div>
   );

@@ -3,6 +3,8 @@
 [![CI](https://github.com/juangh123/ArcProof/actions/workflows/ci.yml/badge.svg)](https://github.com/juangh123/ArcProof/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+![ArcProof paid supplier-quote extraction on Arc](docs/assets/arcproof-cover.png)
+
 ArcProof turns supplier quotation documents into structured purchasing data and releases the result only after a final USDC payment is verified on Arc.
 
 The project is built for freelancers, small sourcing teams, and agent workflows that need a complete payment-to-delivery loop without a separate indexer or reconciliation spreadsheet.
@@ -13,7 +15,7 @@ The project is built for freelancers, small sourcing teams, and agent workflows 
 - Arc Microgrants submission (Under Review): https://dorahacks.io/buidl/49114
 - Completed Arc Mainnet order: https://arcproof-production.up.railway.app/proof/AP-AC247758
 - Mainnet transaction: `0x780b08710fa38e12d35a117918508d2bead4f3e6c88bab203e48dd501d36fe80`
-- CSV result: https://arcproof-production.up.railway.app/api/orders/fc116601-6775-46aa-842a-c8d5eed5304a/csv
+- CSV result: https://arcproof-production.up.railway.app/api/proof/AP-AC247758/csv
 
 The completed order settled `0.10 USDC` on Arc Mainnet and returned three structured quotation lines.
 
@@ -206,6 +208,8 @@ The browser suite covers the complete sample flow and public receipt on desktop 
 - [Operations](docs/OPERATIONS.md)
 - [Submission](docs/SUBMISSION.md)
 - [Arc Microgrants form answers](docs/DORAHACKS_SUBMISSION_ANSWERS.md)
+- [DoraHacks BUIDL description](docs/DORAHACKS_BUIDL_DESCRIPTION.md)
+- [Five-minute reviewer guide](docs/REVIEWER_GUIDE.md)
 - [Three-minute demo](docs/DEMO.md)
 - [v0.2.0 release notes](docs/RELEASE_NOTES_v0.2.0.md)
 

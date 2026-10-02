@@ -152,6 +152,28 @@ a {
   padding: 38px 0 56px;
 }
 
+.reviewer-path {
+  margin: 22px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 24px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.reviewer-path a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+}
+
+.reviewer-path a:hover {
+  color: var(--green);
+}
+
 .page-heading {
   display: flex;
   justify-content: space-between;
@@ -1014,6 +1036,12 @@ th.numeric {
   margin: 0;
 }
 
+.proof-download {
+  margin: 0 24px 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .receipt-grid {
   margin: 0 24px 24px;
   display: grid;
@@ -1201,8 +1229,13 @@ th.numeric {
 
   .proof-verified,
   .proof-pending,
-  .proof-action {
+  .proof-action,
+  .proof-download {
     margin: 16px;
+  }
+
+  .proof-download .button {
+    width: 100%;
   }
 
   .proof-action {

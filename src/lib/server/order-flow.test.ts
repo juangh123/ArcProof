@@ -2,7 +2,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { GET as csvGet, csvCell } from "@/app/api/orders/[id]/csv/route";
+import { GET as csvGet } from "@/app/api/orders/[id]/csv/route";
+import { GET as publicCsvGet } from "@/app/api/proof/[id]/csv/route";
 import { POST as processPost } from "@/app/api/orders/[id]/process/route";
 import { POST as verifyPost } from "@/app/api/orders/[id]/verify/route";
 import { POST as ordersPost } from "@/app/api/orders/route";
@@ -17,6 +18,7 @@ import {
   recordVerifiedPayment,
 } from "@/lib/server/repository";
 import { SAMPLE_QUOTE_TEXT } from "@/lib/server/sample";
+import { csvCell } from "@/lib/server/csv";
 
 let dataDirectory = "";
 const recipient = "0x1111111111111111111111111111111111111111";
@@ -273,5 +275,13 @@ describe("csv export", () => {
     const body = await response.text();
     expect(body).toContain("ALU-6061");
     expect(body).toContain("line_number");
+
+    const publicResponse = await publicCsvGet(
+      new Request(`http://localhost/api/proof/${order.publicId}/csv`),
+      routeContext(order.publicId),
+    );
+
+    expect(publicResponse.status).toBe(200);
+    expect(await publicResponse.text()).toContain("ALU-6061");
   });
 });

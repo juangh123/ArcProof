@@ -28,7 +28,8 @@ https://dorahacks.io/hackathon/arc-microgrants/build
     https://arcproof-production.up.railway.app/proof/AP-AC247758 · Repository
     contains 50 unit/integration tests and 8 Playwright tests across desktop
     and a 390px mobile viewport · CI is green on `master` · `pnpm preflight`
-    and the mainnet smoke-verification path are documented in the repository.
+   and the mainnet smoke-verification path are documented in the repository ·
+   CSV: https://arcproof-production.up.railway.app/api/proof/AP-AC247758/csv.
 
 Submission status:
 
@@ -40,3 +41,10 @@ Submission status:
   not treat that public count as a submission check.
 - Remaining improvement: update the BUIDL description to 50 tests and attach
   the demo video.
+
+## Submission material files
+
+- Paste-ready BUIDL description: [DORAHACKS_BUIDL_DESCRIPTION.md](DORAHACKS_BUIDL_DESCRIPTION.md)
+- Cover image: [arcproof-cover.png](assets/arcproof-cover.png)
+- Five-minute reviewer path: [REVIEWER_GUIDE.md](REVIEWER_GUIDE.md)
+- Video timeline and narration: [DEMO.md](DEMO.md)
