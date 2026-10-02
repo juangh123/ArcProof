@@ -24,6 +24,7 @@ Every completed order also gets a public payment receipt and CSV export.
 - CSV result: https://arcproof-production.up.railway.app/api/proof/AP-AC247758/csv
 - Transaction: https://explorer.arc.io/tx/0x780b08710fa38e12d35a117918508d2bead4f3e6c88bab203e48dd501d36fe80
 - Repo: https://github.com/juangh123/ArcProof
+- Demo video: https://github.com/juangh123/ArcProof/releases/download/v0.2.0/arcproof-demo.mp4
 
 The recorded order settled `0.10 USDC` on Arc Mainnet and returned three
 structured quotation lines. This is a real Mainnet payment, not a fixture or

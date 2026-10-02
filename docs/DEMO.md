@@ -2,6 +2,10 @@
 
 This is the shortest reviewer path for the Arc Microgrants submission.
 
+Recorded demo video:
+
+https://github.com/juangh123/ArcProof/releases/download/v0.2.0/arcproof-demo.mp4
+
 ## 1. Open the live application
 
 Open:

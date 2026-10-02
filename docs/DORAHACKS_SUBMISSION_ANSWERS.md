@@ -46,5 +46,7 @@ Submission status:
 
 - Paste-ready BUIDL description: [DORAHACKS_BUIDL_DESCRIPTION.md](DORAHACKS_BUIDL_DESCRIPTION.md)
 - Cover image: [arcproof-cover.png](assets/arcproof-cover.png)
+- Square BUIDL icon: [arcproof-buidl-icon.png](assets/arcproof-buidl-icon.png)
+- Demo video: https://github.com/juangh123/ArcProof/releases/download/v0.2.0/arcproof-demo.mp4
 - Five-minute reviewer path: [REVIEWER_GUIDE.md](REVIEWER_GUIDE.md)
 - Video timeline and narration: [DEMO.md](DEMO.md)

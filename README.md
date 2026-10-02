@@ -13,6 +13,7 @@ The project is built for freelancers, small sourcing teams, and agent workflows 
 
 - Application: https://arcproof-production.up.railway.app
 - Arc Microgrants submission (Under Review): https://dorahacks.io/buidl/49114
+- Demo video: https://github.com/juangh123/ArcProof/releases/download/v0.2.0/arcproof-demo.mp4
 - Completed Arc Mainnet order: https://arcproof-production.up.railway.app/proof/AP-AC247758
 - Mainnet transaction: `0x780b08710fa38e12d35a117918508d2bead4f3e6c88bab203e48dd501d36fe80`
 - CSV result: https://arcproof-production.up.railway.app/api/proof/AP-AC247758/csv
