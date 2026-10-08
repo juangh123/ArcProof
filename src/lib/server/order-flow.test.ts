@@ -151,6 +151,95 @@ describe("verify route", () => {
 
     expect(response.status).toBe(409);
   });
+
+  it("keeps a verified order intact when the same payment is verified again", async () => {
+    const order = createTestOrder(SAMPLE_QUOTE_TEXT);
+    const txHash = `0x${"2".repeat(64)}` as const;
+
+    const first = await verifyRequest(order.id, txHash);
+    expect(first.status).toBe(200);
+    expect(getOrderById(order.id)?.status).toBe("payment_verified");
+
+    const second = await verifyRequest(order.id, txHash);
+    expect(second.status).toBe(200);
+
+    const payload = (await second.json()) as {
+      order: { status: string; txHash: string };
+    };
+    expect(payload.order.status).toBe("payment_verified");
+    expect(payload.order.txHash).toBe(txHash);
+    expect(getOrderById(order.id)?.status).toBe("payment_verified");
+
+    const processed = await processRequest(order.id);
+    expect(processed.status).toBe(200);
+    expect(
+      ((await processed.json()) as { order: { status: string } }).order.status,
+    ).toBe("completed");
+  });
+
+  it("does not downgrade a paid order when a stale verify request resumes after verification", async () => {
+    const order = createTestOrder(SAMPLE_QUOTE_TEXT);
+    const txHash = `0x${"7".repeat(64)}` as const;
+    const encoder = new TextEncoder();
+    let releaseBody = () => {};
+    let markBodyStarted = () => {};
+    const bodyStarted = new Promise<void>((resolve) => {
+      markBodyStarted = resolve;
+    });
+    let pullStarted = false;
+
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (!pullStarted) {
+          pullStarted = true;
+          markBodyStarted();
+        }
+
+        return new Promise<void>((resolve) => {
+          releaseBody = () => {
+            controller.enqueue(encoder.encode(JSON.stringify({ txHash })));
+            controller.close();
+            resolve();
+          };
+        });
+      },
+    });
+
+    const staleRequest = verifyPost(
+      new Request(`http://localhost/api/orders/${order.id}/verify`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+        duplex: "half",
+      } as RequestInit & { duplex: "half" }),
+      routeContext(order.id),
+    );
+
+    // The stale request has read the unpaid order and is now waiting on its
+    // body, which lets the first verification finish in between.
+    await bodyStarted;
+
+    const verified = await verifyRequest(order.id, txHash);
+    expect(verified.status).toBe(200);
+    expect(getOrderById(order.id)?.status).toBe("payment_verified");
+
+    releaseBody();
+    const staleResponse = await staleRequest;
+    expect(staleResponse.status).toBe(200);
+
+    const stalePayload = (await staleResponse.json()) as {
+      order: { status: string; txHash: string };
+    };
+    expect(stalePayload.order.status).toBe("payment_verified");
+    expect(stalePayload.order.txHash).toBe(txHash);
+    expect(getOrderById(order.id)?.status).toBe("payment_verified");
+
+    const processed = await processRequest(order.id);
+    expect(processed.status).toBe(200);
+    expect(
+      ((await processed.json()) as { order: { status: string } }).order.status,
+    ).toBe("completed");
+  });
 });
 
 describe("order creation preflight", () => {

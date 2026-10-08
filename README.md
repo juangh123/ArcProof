@@ -187,7 +187,7 @@ PUBLIC_BASE_URL=https://your-railway-domain \
 pnpm smoke verify <ORDER_ID> <TRANSACTION_HASH>
 ```
 
-The unit suite currently contains 50 passing tests and covers payment transaction uniqueness, pending-payment recovery, paid-draft release, pre-payment extraction rejection, failed-job retry, processing lease fencing, order expiry and retention, stale payment-target rejection, request rate limiting and memory bounds, upload-size preflight, file validation, wrong chain/Memo/recipient/amount cases, duplicate Arc event rejection, the two-event Arc USDC model, quotation extraction, monetary consistency, price defaulting, empty-result handling, scanned-PDF detection, and CSV formula neutralization.
+The unit suite currently contains 54 passing tests and covers payment transaction uniqueness, pending-payment recovery, paid-draft release, pre-payment extraction rejection, failed-job retry, processing lease fencing, order expiry and retention, stale payment-target rejection, request rate limiting and memory bounds, upload-size preflight, file validation, wrong chain/Memo/recipient/amount cases, duplicate Arc event rejection, the two-event Arc USDC model, verification claim atomicity, quotation extraction, monetary consistency, price defaulting, empty-result handling, scanned-PDF detection, and CSV formula neutralization.
 
 The browser suite covers the complete sample flow and public receipt on desktop and a 390px mobile viewport.
 

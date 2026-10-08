@@ -69,7 +69,7 @@ The result is released only after final settlement. Arc's deterministic finality
 
 The repository contains:
 
-- 50 passing unit and integration tests.
+- 54 passing unit and integration tests.
 - 8 passing Playwright browser tests across desktop and a 390px mobile viewport.
 - A production build verified in CI and in the Railway Docker build.
 - `pnpm preflight` checks for RPC chain ID, deployed USDC and Memo contracts, recipient balance, public health, database writability, live payment mode, and the published service price.
@@ -81,7 +81,7 @@ The public receipt records the final transaction, payer, recipient, Memo ID, blo
 
 - The fixed `0.10 USDC` price is enforced in code and surfaced on `/api/health`, so a missing environment variable can no longer silently change the price.
 - Documents are preflighted and rejected before payment when no structured line item can be produced. The validated draft is stored server-side and released only after the Arc payment is verified.
-- An order that already recorded a verified payment can no longer be downgraded back into verification, so a failed job can always be retried without repaying.
+- Verification now claims an unpaid order atomically before Arc RPC work. Concurrent or stale verify requests can no longer downgrade an order that already recorded a payment, while failed jobs remain retryable without repaying.
 - Legacy paid jobs that extract no line items fail retryably instead of releasing an empty result.
 - CSV exports neutralize spreadsheet formulas, and the deterministic parser now handles space-aligned tables and European decimal amounts.
 - Payment requests expire for new payments after seven days. Unpaid and payment-rejected records are retained server-side for up to 30 days, while orders that reached verification are retained for manual resolution.
@@ -112,5 +112,5 @@ Supplier quote normalization is a repeated, measurable workflow for small sourci
 - [x] Automated tests and production deployment.
 - [x] Arc Microgrants event submission confirmed: Builds page shows `Your Build`
   -> `ArcProof` -> `Under Review`.
-- [ ] Three-minute demo video attached to the DoraHacks BUIDL.
+- [x] Three-minute demo video attached to the DoraHacks BUIDL.
 - [x] `v0.2.0` GitHub release published.

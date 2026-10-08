@@ -20,6 +20,8 @@ extraction. This release packages the post-submission hardening on `master`.
   resolution, and protection against paying a submitted transaction twice.
 - Public receipt recovery through the public order ID without exposing the
   internal order UUID.
+- Atomic verification claims, so concurrent or stale verify requests cannot
+  downgrade an order after its payment has been recorded.
 - CSV formula neutralization, broader deterministic quote parsing, rate-limit
   memory bounds, and upload-size preflight checks.
 - A production Docker build, Railway deployment configuration, desktop and
@@ -33,5 +35,5 @@ extraction. This release packages the post-submission hardening on `master`.
 - `pnpm build`
 - `pnpm test:e2e`
 
-The current suite contains 50 unit/integration tests and 8 browser tests
+The current suite contains 54 unit/integration tests and 8 browser tests
 across desktop and a 390px mobile viewport.

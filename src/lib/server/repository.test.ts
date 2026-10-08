@@ -10,6 +10,7 @@ import {
   OrderConflictError,
   TransactionReuseError,
   claimOrderForProcessing,
+  claimOrderForVerification,
   cleanupStaleOrders,
   completeOrder,
   createOrder,
@@ -106,6 +107,32 @@ describe("order repository", () => {
     expect(() =>
       recordVerifiedPayment(order.id, proofFor(secondTx, order)),
     ).toThrow(OrderConflictError);
+  });
+
+  it("refuses to claim a paid order for verification", () => {
+    const order = createTestOrder();
+    const txHash = `0x${"5".repeat(64)}` as const;
+
+    recordVerifiedPayment(order.id, proofFor(txHash, order));
+
+    expect(claimOrderForVerification(order.id)).toBe(false);
+    expect(getOrderById(order.id)?.status).toBe("payment_verified");
+  });
+
+  it("claims awaiting_payment and payment_rejected orders", () => {
+    const fresh = createTestOrder();
+
+    expect(claimOrderForVerification(fresh.id)).toBe(true);
+    expect(getOrderById(fresh.id)?.status).toBe("verifying");
+
+    const rejected = createTestOrder();
+
+    expect(claimOrderForVerification(rejected.id)).toBe(true);
+    expect(recordPaymentRejection(rejected.id, "wrong amount")).toBe(true);
+    expect(getOrderById(rejected.id)?.status).toBe("payment_rejected");
+
+    expect(claimOrderForVerification(rejected.id)).toBe(true);
+    expect(getOrderById(rejected.id)?.status).toBe("verifying");
   });
 
   it("retries a failed processing job without another payment", () => {

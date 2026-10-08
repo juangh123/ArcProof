@@ -5,12 +5,12 @@ import { verifyArcPayment } from "@/lib/arc/verifier";
 import {
   OrderConflictError,
   TransactionReuseError,
+  claimOrderForVerification,
   getOrderById,
   getOrderEvents,
   releaseVerificationClaim,
   recordPaymentRejection,
   recordVerifiedPayment,
-  setOrderStatus,
 } from "@/lib/server/repository";
 import { logEvent } from "@/lib/server/logger";
 import { getClientKey, orderVerifyLimiter } from "@/lib/server/rate-limit";
@@ -69,7 +69,35 @@ export async function POST(
     });
   }
 
-  setOrderStatus(order.id, "verifying");
+  if (!claimOrderForVerification(order.id)) {
+    const current = getOrderById(order.id);
+
+    if (!current) {
+      return NextResponse.json({ error: "Order not found." }, { status: 404 });
+    }
+
+    if (
+      current.txHash &&
+      current.txHash.toLowerCase() === txHash.toLowerCase()
+    ) {
+      // A concurrent request already verified this payment. Return the
+      // recorded state instead of downgrading or re-verifying the order.
+      return NextResponse.json({
+        order: serializeOrder(current, getOrderEvents(order.id)),
+      });
+    }
+
+    return NextResponse.json(
+      {
+        error: current.txHash
+          ? "This order already has a different payment transaction."
+          : "The order is no longer accepting a payment verification.",
+        order: serializeOrder(current, getOrderEvents(order.id)),
+      },
+      { status: 409 },
+    );
+  }
+
   logEvent("payment.verification.started", {
     publicId: order.publicId,
     txHash,

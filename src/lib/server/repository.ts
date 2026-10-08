@@ -228,6 +228,22 @@ export function setOrderStatus(
     .run(status, errorMessage, now(), orderId);
 }
 
+// Atomically move an unpaid order into verification. A paid, processing, or
+// completed order is never downgraded, even when a stale request races a
+// successful verification.
+export function claimOrderForVerification(orderId: string) {
+  const result = getDatabase()
+    .prepare(
+      `UPDATE orders
+       SET status = 'verifying', error_message = NULL, updated_at = ?
+       WHERE id = ?
+         AND tx_hash IS NULL
+         AND status IN ('awaiting_payment', 'verifying', 'payment_rejected')`,
+    )
+    .run(now(), orderId);
+
+  return Number(result.changes) > 0;
+}
 export function recordVerifiedPayment(
   orderId: string,
   proof: PaymentProof,

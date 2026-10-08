@@ -53,7 +53,7 @@ fulfillment from its own transaction-success state.
 ## Engineering quality
 
 - Next.js 16, React 19, TypeScript, Node.js 24, SQLite, viem, and unpdf.
-- 50 unit/integration tests and 8 Playwright tests across desktop and a 390px
+- 54 unit/integration tests and 8 Playwright tests across desktop and a 390px
   mobile viewport.
 - Green CI pipeline with lint, typecheck, unit tests, production build, Docker
   build, and browser tests.
