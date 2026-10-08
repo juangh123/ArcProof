@@ -10,6 +10,10 @@ extraction. This release packages the post-submission hardening on `master`.
 - Public receipt: https://arcproof-production.up.railway.app/proof/AP-AC247758
 - CSV result: https://arcproof-production.up.railway.app/api/proof/AP-AC247758/csv
 
+Self-test note: payer and recipient are the same EOA, so this is the
+documented EIP-7708 self-transfer case where the protocol omits the native
+event; verification uses the signed `Memo.memo` call plus the ERC-20 mirror.
+
 ## Included in this release
 
 - Independent Memo and USDC transfer verification, including EIP-7708

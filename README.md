@@ -20,6 +20,8 @@ The project is built for freelancers, small sourcing teams, and agent workflows 
 
 The completed order settled `0.10 USDC` on Arc Mainnet and returned three structured quotation lines.
 
+The published proof is a self-test: the same EOA is both payer and recipient. Arc's EIP-7708 rule omits the native transfer event for that case, so this order is verified through the signed `Memo.memo` call plus the 6-decimal ERC-20 mirror. A payment from a separate payer wallet would additionally require the canonical 18-decimal native event.
+
 ![ArcProof completed Arc Mainnet receipt](docs/assets/arcproof-proof-desktop.png)
 
 ## Payment guarantees

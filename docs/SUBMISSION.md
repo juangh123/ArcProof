@@ -61,7 +61,10 @@ The result is released only after final settlement. Arc's deterministic finality
 - CSV output: https://arcproof-production.up.railway.app/api/proof/AP-AC247758/csv
 - Network: Arc Mainnet, Chain ID `5042`
 - Settlement: `0.10 USDC`
+- Payer / recipient: the same EOA (self-transfer self-test)
 - Result: three structured quotation lines
+
+This published payment is a self-test: the same EOA paid and received, which is Arc's documented EIP-7708 case where the protocol omits the native transfer event. The order is verified through the signed `Memo.memo` call plus the 6-decimal ERC-20 mirror. Normal payments from a separate payer additionally require the canonical 18-decimal native event. No separate-payer wallet payment was available for this submission.
 
 ![ArcProof completed Arc Mainnet receipt](assets/arcproof-proof-desktop.png)
 

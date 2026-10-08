@@ -19,8 +19,10 @@ Verify:
 
 - Status `Completed`.
 - Amount `0.10 USDC` on Arc Mainnet, Chain ID `5042`.
-- Payer, recipient, Memo ID, block, and transaction hash.
-- Native/ERC-20 event handling, including the EIP-7708 self-transfer entry.
+- Payer, recipient, Memo ID, block, and transaction hash. Payer and recipient
+  are the same EOA: the published proof is a self-transfer self-test.
+- Native/ERC-20 event handling. Because this is a self-transfer, EIP-7708
+  omits the native event and the receipt shows the ERC-20 mirror instead.
 - The transaction link and the five verification events.
 
 ## 3. Download the structured result

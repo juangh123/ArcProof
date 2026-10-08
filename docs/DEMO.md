@@ -56,6 +56,10 @@ Show:
 - Verification mode `live`
 - Three structured quotation lines
 
+Payer and recipient are the same EOA: this receipt is the self-transfer
+self-test, the EIP-7708 case where the native event is omitted and the
+ERC-20 mirror carries the transfer record.
+
 Open the CSV:
 
 https://arcproof-production.up.railway.app/api/proof/AP-AC247758/csv
@@ -80,7 +84,7 @@ The frontend never marks an order as fulfilled by itself.
 
 ## Reviewer note
 
-If you create a new order, it will require a real `0.10 USDC` payment on Arc Mainnet. The existing completed receipt and transaction hash are the recorded evidence for reviewers who only need to inspect the final result.
+If you create a new order, it will require a real `0.10 USDC` payment on Arc Mainnet. The existing completed receipt and transaction hash are the recorded evidence for reviewers who only need to inspect the final result. Note that the recorded order is a self-transfer self-test; a payment from a separate payer wallet additionally exercises the canonical 18-decimal native event.
 
 ## Suggested recording timeline
 

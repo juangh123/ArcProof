@@ -28,7 +28,11 @@ Every completed order also gets a public payment receipt and CSV export.
 
 The recorded order settled `0.10 USDC` on Arc Mainnet and returned three
 structured quotation lines. This is a real Mainnet payment, not a fixture or
-a testnet-only demo.
+a testnet-only demo. It is also a self-test: the same EOA paid and received,
+which is the documented EIP-7708 self-transfer case where the native event is
+omitted and verification relies on the signed `Memo.memo` call plus the
+6-decimal ERC-20 mirror. No separate-payer wallet payment was available for
+this submission.
 
 ## Why Arc is essential
 

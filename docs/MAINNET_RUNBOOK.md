@@ -36,7 +36,7 @@ ARCPROOF_DATA_DIR=/data
 
 Arc supports Circle CCTP and Gateway contracts for moving USDC. Availability of an exchange withdrawal route depends on the provider at the time of deployment.
 
-Before the mainnet smoke test, complete a small transfer to the receiving wallet and verify the balance on Arc. For the first test, the same EOA may be used as payer and recipient with a `0.10 USDC` service price.
+Before the mainnet smoke test, complete a small transfer to the receiving wallet and verify the balance on Arc. The published proof uses the same EOA as payer and recipient (a self-test) with a `0.10 USDC` service price; a distinct payer wallet additionally exercises the canonical native event.
 
 ## 4. Test the real payment path
 
@@ -46,8 +46,8 @@ Confirm:
 
 - The wallet switches to chain `5042`.
 - The transaction targets the Memo contract.
-- The receipt shows exactly one canonical 18-decimal native USDC transfer.
-- The receipt also shows one 6-decimal ERC-20 mirror for the same movement. When payer and recipient are the same EOA, EIP-7708 omits the native event; the verifier records that omission and uses the ERC-20 mirror plus the signed Memo transfer.
+- For a distinct payer, the receipt shows exactly one canonical 18-decimal native USDC transfer, plus one 6-decimal ERC-20 mirror for the same movement.
+- When payer and recipient are the same EOA, EIP-7708 omits the native event; the verifier records that omission and uses the ERC-20 mirror plus the signed Memo transfer. The published `AP-AC247758` proof is this self-transfer case.
 - The order reaches `completed`.
 - The public proof page links to the transaction.
 - Reusing the same transaction on another order is rejected.
