@@ -90,6 +90,7 @@ function createDatabase() {
     "INTEGER NOT NULL DEFAULT 0",
   );
   ensureColumn(database, "orders", "processing_started_at", "TEXT");
+  ensureColumn(database, "orders", "result_redacted_at", "TEXT");
 
   return database;
 }

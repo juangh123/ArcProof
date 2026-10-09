@@ -49,6 +49,14 @@ For a raw copy instead, back up the entire SQLite directory including `arcproof.
 - Application logs are JSON lines and contain public order identifiers, not quotation text.
 - Alert on health failures, repeated payment-verification conflicts, and repeated processing failures.
 
+## Retention
+
+`ARCPROOF_RESULT_RETENTION_DAYS` (unset or `0` keeps results forever) redacts the stored quotation payload of completed orders older than the window. Payment evidence and the public receipt stay intact; the CSV export then answers `410 Gone`.
+
+`ARCPROOF_RETENTION_EXEMPT_IDS` lists public ids that must never expire, for example the published demo receipt `AP-AC247758`. Retention runs alongside order creation, so it applies as traffic arrives rather than on a schedule.
+
+Recommended starting point once the support/refund window is settled: `ARCPROOF_RESULT_RETENTION_DAYS=365` with the demo receipt exempted.
+
 ## Incident handling
 
 - If Arc RPC is unavailable, new verification requests remain recoverable; already verified orders retain their evidence.

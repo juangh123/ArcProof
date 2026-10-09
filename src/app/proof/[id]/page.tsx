@@ -105,7 +105,11 @@ export default async function ProofPage({
               <span>Extraction</span>
               <strong>
                 {order.status === "completed"
-                  ? `${order.quoteResult?.lineItems.length ?? 0} lines`
+                  ? order.quoteResult
+                    ? `${order.quoteResult.lineItems.length} lines`
+                    : order.resultRedactedAt
+                      ? "Expired"
+                      : "0 lines"
                   : "Locked until processing"}
               </strong>
             </div>
@@ -191,15 +195,28 @@ export default async function ProofPage({
           <ResumeProcessing publicId={order.publicId} status={order.status} />
 
           {order.status === "completed" ? (
-            <div className="proof-download">
-              <a
-                className="button button-secondary"
-                href={`/api/proof/${order.publicId}/csv`}
-              >
-                <Download size={16} />
-                Download CSV
-              </a>
-            </div>
+            order.quoteResult ? (
+              <div className="proof-download">
+                <a
+                  className="button button-secondary"
+                  href={`/api/proof/${order.publicId}/csv`}
+                >
+                  <Download size={16} />
+                  Download CSV
+                </a>
+              </div>
+            ) : order.resultRedactedAt ? (
+              <div className="proof-pending">
+                <Clock3 size={28} />
+                <div>
+                  <strong>Stored result expired</strong>
+                  <p>
+                    The quotation payload was removed by the retention policy;
+                    the payment receipt above is unchanged.
+                  </p>
+                </div>
+              </div>
+            ) : null
           ) : null}
 
           <div className="event-section">

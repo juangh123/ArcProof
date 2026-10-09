@@ -19,6 +19,7 @@ import {
   getOrderById,
   listRecentOrders,
   recordVerifiedPayment,
+  redactExpiredResults,
 } from "@/lib/server/repository";
 import { SAMPLE_QUOTE_TEXT } from "@/lib/server/sample";
 import { csvCell } from "@/lib/server/csv";
@@ -509,5 +510,32 @@ describe("csv export", () => {
 
     expect(publicResponse.status).toBe(200);
     expect(await publicResponse.text()).toContain("ALU-6061");
+  });
+
+  it("reports an expired payload once retention has redacted a result", async () => {
+    const order = createTestOrder(SAMPLE_QUOTE_TEXT);
+    recordVerifiedPayment(order.id, proofFor(`0x${"f".repeat(64)}`, order));
+
+    const processed = await processRequest(order.id);
+    expect(processed.status).toBe(200);
+
+    expect(
+      redactExpiredResults(1, [], Date.now() + 10 * 24 * 60 * 60_000),
+    ).toEqual([order.publicId]);
+
+    const privateResponse = await csvGet(
+      new Request(`http://localhost/api/orders/${order.id}/csv`),
+      routeContext(order.id),
+    );
+    expect(privateResponse.status).toBe(410);
+    await expect(privateResponse.json()).resolves.toMatchObject({
+      error: expect.stringContaining("expired"),
+    });
+
+    const publicResponse = await publicCsvGet(
+      new Request(`http://localhost/api/proof/${order.publicId}/csv`),
+      routeContext(order.publicId),
+    );
+    expect(publicResponse.status).toBe(410);
   });
 });

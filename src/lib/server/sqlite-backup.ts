@@ -20,7 +20,7 @@ export type BackupResult = {
 };
 
 export function resolveBackupPaths(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): BackupPaths {
   const dataDirectory =
     env.ARCPROOF_DATA_DIR?.trim() || path.join(process.cwd(), "data");

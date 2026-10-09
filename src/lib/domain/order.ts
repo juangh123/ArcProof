@@ -62,6 +62,7 @@ export type OrderRecord = {
   processedAt: string | null;
   processingAttempts: number;
   processingStartedAt: string | null;
+  resultRedactedAt: string | null;
 };
 
 export type OrderEvent = {
