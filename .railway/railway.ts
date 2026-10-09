@@ -23,6 +23,9 @@ export default defineRailway(() => {
     },
     healthcheck: "/api/health",
     healthcheckTimeout: 30,
+    // Declare every variable the application reads with preserve() so a
+    // destructive apply can never drop one silently. Removing variables
+    // additionally requires --confirm-destructive.
     env: {
       ARCPROOF_DATA_DIR: preserve(),
       ARCPROOF_VERSION: preserve(),
@@ -30,6 +33,12 @@ export default defineRailway(() => {
       ARC_PAYMENT_MODE: preserve(),
       ARC_QUOTE_PRICE_USDC: preserve(),
       ARC_RECIPIENT_ADDRESS: preserve(),
+      ARC_RPC_URL: preserve(),
+      ARC_EXPLORER_URL: preserve(),
+      OPENAI_API_KEY: preserve(),
+      OPENAI_MODEL: preserve(),
+      NEXT_PUBLIC_SITE_URL: preserve(),
+      NEXT_PUBLIC_REVIEW_PROOF_ID: preserve(),
     },
     volumeMounts: {
       "/data": data,
