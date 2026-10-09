@@ -28,6 +28,7 @@ Use a SQLite-safe backup command or stop the service before copying the files. D
 ## Monitoring
 
 - Railway health checks use `/api/health`.
+- The RPC chain check inside `/api/health` is cached for ten seconds; a provider outage therefore shows up after a short delay rather than on the first failed probe.
 - `/api/health` returns a non-empty `configErrors` array when `ARC_NETWORK`, `ARC_PAYMENT_MODE`, `ARC_RECIPIENT_ADDRESS`, or `ARC_QUOTE_PRICE_USDC` is invalid. Treat a non-empty array as a failed deploy: payment creation is disabled while it is present.
 - Application logs are JSON lines and contain public order identifiers, not quotation text.
 - Alert on health failures, repeated payment-verification conflicts, and repeated processing failures.

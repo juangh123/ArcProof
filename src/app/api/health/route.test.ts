@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as healthGet } from "@/app/api/health/route";
 import { resetDatabaseForTests } from "@/lib/server/db";
+import { resetHealthCacheForTests } from "@/lib/server/health-cache";
 
 const { mockClient } = vi.hoisted(() => ({
   mockClient: { getChainId: vi.fn() },
@@ -47,6 +48,7 @@ beforeEach(() => {
   process.env.ARC_RECIPIENT_ADDRESS = recipient;
   delete process.env.ARC_QUOTE_PRICE_USDC;
   mockClient.getChainId.mockReset();
+  resetHealthCacheForTests();
   resetDatabaseForTests();
 });
 
