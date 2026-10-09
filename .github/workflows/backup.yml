@@ -1,0 +1,30 @@
+name: Scheduled backup
+
+on:
+  schedule:
+    # Daily at 03:17 UTC. GitHub may delay scheduled runs under load.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Trigger the protected backup endpoint
+        env:
+          BACKUP_URL: ${{ vars.BACKUP_URL || 'https://arcproof-production.up.railway.app/api/admin/backup' }}
+          BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
+        run: |
+          if [ -z "$BACKUP_TOKEN" ]; then
+            echo "The BACKUP_TOKEN repository secret is not configured." >&2
+            exit 1
+          fi
+
+          curl --fail --silent --show-error --max-time 120 \
+            --request POST "$BACKUP_URL" \
+            --header "Authorization: Bearer $BACKUP_TOKEN"
