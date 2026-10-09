@@ -7,6 +7,7 @@ import { ORDER_PAYMENT_WINDOW_MS } from "@/lib/domain/order";
 import { serializeOrder } from "@/lib/api/serialize";
 import { resetDatabaseForTests } from "@/lib/server/db";
 import {
+  MAX_PROCESSING_ATTEMPTS,
   OrderConflictError,
   TransactionReuseError,
   claimOrderForProcessing,
@@ -248,5 +249,26 @@ describe("order repository", () => {
       new Date(serialized.expiresAt).getTime() -
         new Date(order.createdAt).getTime(),
     ).toBe(ORDER_PAYMENT_WINDOW_MS);
+  });
+
+  it("issues public identifiers with enough entropy to resist guessing", () => {
+    const order = createTestOrder();
+
+    expect(order.publicId).toMatch(/^AP-[A-F0-9]{16}$/);
+  });
+
+  it("stops reclaiming a processing job after the retry limit", () => {
+    const order = createTestOrder();
+    recordVerifiedPayment(order.id, proofFor(`0x${"7".repeat(64)}`, order));
+
+    for (let attempt = 1; attempt <= MAX_PROCESSING_ATTEMPTS; attempt += 1) {
+      const claimed = claimOrderForProcessing(order.id);
+
+      expect(claimed).toBe(attempt);
+      failOrder(order.id, "parser failed", claimed!);
+    }
+
+    expect(claimOrderForProcessing(order.id)).toBeNull();
+    expect(getOrderById(order.id)?.status).toBe("failed");
   });
 });

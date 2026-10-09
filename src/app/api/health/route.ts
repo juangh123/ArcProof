@@ -49,7 +49,8 @@ export async function GET() {
     row.ok === 1 &&
     writable &&
     rpcChainId === config.chainId &&
-    configured;
+    configured &&
+    config.configErrors.length === 0;
   const version =
     process.env.RAILWAY_GIT_COMMIT_SHA ??
     process.env.ARCPROOF_VERSION ??
@@ -66,6 +67,7 @@ export async function GET() {
       paymentMode: config.paymentMode,
       quotePriceUsdc: config.quotePriceUsdc,
       configured,
+      configErrors: config.configErrors,
       version,
       timestamp: new Date().toISOString(),
     },

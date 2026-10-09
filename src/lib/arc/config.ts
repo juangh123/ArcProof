@@ -40,21 +40,57 @@ export type ArcRuntimeConfig = ArcNetworkConfig & {
   paymentMode: PaymentMode;
   recipientAddress: `0x${string}` | null;
   quotePriceUsdc: string;
+  configErrors: string[];
 };
 
-function parseNetwork(value: string | undefined): ArcNetworkName {
-  return value === "testnet" ? "testnet" : "mainnet";
+const QUOTE_PRICE_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/;
+const ZERO_PRICE_PATTERN = /^0(?:\.0+)?$/;
+
+function parseNetwork(
+  value: string | undefined,
+  configErrors: string[],
+): ArcNetworkName {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized) {
+    return "mainnet";
+  }
+
+  if (normalized === "mainnet" || normalized === "testnet") {
+    return normalized;
+  }
+
+  // Never silently fall back to a real-money network when the value is wrong.
+  configErrors.push('ARC_NETWORK must be either "mainnet" or "testnet".');
+  return "mainnet";
 }
 
 function parsePaymentMode(
   value: string | undefined,
   network: ArcNetworkName,
+  configErrors: string[],
 ): PaymentMode {
-  if (
-    value === "fixture" &&
-    process.env.NODE_ENV !== "production" &&
-    network === "testnet"
-  ) {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized) {
+    return "live";
+  }
+
+  if (normalized !== "live" && normalized !== "fixture") {
+    configErrors.push('ARC_PAYMENT_MODE must be either "live" or "fixture".');
+    return "live";
+  }
+
+  if (normalized === "fixture") {
+    if (process.env.NODE_ENV === "production" || network !== "testnet") {
+      // Fail loudly instead of silently switching a test-intent deployment
+      // to live payments.
+      configErrors.push(
+        "Fixture payment mode is only available outside production on Arc Testnet.",
+      );
+      return "live";
+    }
+
     return "fixture";
   }
 
@@ -63,27 +99,69 @@ function parsePaymentMode(
 
 function parseRecipientAddress(
   value: string | undefined,
+  configErrors: string[],
 ): `0x${string}` | null {
-  if (!value || !isAddress(value)) {
+  const normalized = value?.trim();
+
+  if (!normalized) {
     return null;
   }
 
-  return getAddress(value);
+  if (!isAddress(normalized)) {
+    configErrors.push("ARC_RECIPIENT_ADDRESS must be a valid EVM address.");
+    return null;
+  }
+
+  return getAddress(normalized);
+}
+
+function parseQuotePrice(
+  value: string | undefined,
+  configErrors: string[],
+): string {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return DEFAULT_QUOTE_PRICE_USDC;
+  }
+
+  if (
+    !QUOTE_PRICE_PATTERN.test(normalized) ||
+    ZERO_PRICE_PATTERN.test(normalized)
+  ) {
+    configErrors.push(
+      "ARC_QUOTE_PRICE_USDC must be a positive USDC amount with at most six decimals.",
+    );
+    return DEFAULT_QUOTE_PRICE_USDC;
+  }
+
+  return normalized;
 }
 
 export function getArcRuntimeConfig(): ArcRuntimeConfig {
-  const network = parseNetwork(process.env.ARC_NETWORK);
+  const configErrors: string[] = [];
+  const network = parseNetwork(process.env.ARC_NETWORK, configErrors);
   const defaults = ARC_NETWORKS[network];
 
   return {
     ...defaults,
-    rpcUrl: process.env.ARC_RPC_URL ?? defaults.rpcUrl,
-    explorerUrl: process.env.ARC_EXPLORER_URL ?? defaults.explorerUrl,
+    rpcUrl: process.env.ARC_RPC_URL?.trim() || defaults.rpcUrl,
+    explorerUrl: process.env.ARC_EXPLORER_URL?.trim() || defaults.explorerUrl,
     network,
-    paymentMode: parsePaymentMode(process.env.ARC_PAYMENT_MODE, network),
-    recipientAddress: parseRecipientAddress(process.env.ARC_RECIPIENT_ADDRESS),
-    quotePriceUsdc:
-      process.env.ARC_QUOTE_PRICE_USDC?.trim() || DEFAULT_QUOTE_PRICE_USDC,
+    paymentMode: parsePaymentMode(
+      process.env.ARC_PAYMENT_MODE,
+      network,
+      configErrors,
+    ),
+    recipientAddress: parseRecipientAddress(
+      process.env.ARC_RECIPIENT_ADDRESS,
+      configErrors,
+    ),
+    quotePriceUsdc: parseQuotePrice(
+      process.env.ARC_QUOTE_PRICE_USDC,
+      configErrors,
+    ),
+    configErrors,
   };
 }
 
@@ -94,12 +172,16 @@ export function getPublicArcConfig() {
     network: config.network,
     name: config.name,
     chainId: config.chainId,
-    rpcUrl: config.rpcUrl,
+    // Browsers only ever receive the documented public RPC endpoint.
+    // A private ARC_RPC_URL may embed an API key and must stay server-side.
+    rpcUrl: ARC_NETWORKS[config.network].rpcUrl,
     explorerUrl: config.explorerUrl,
     paymentMode: config.paymentMode,
     recipientAddress: config.recipientAddress,
     quotePriceUsdc: config.quotePriceUsdc,
-    configured: Boolean(config.recipientAddress),
+    configured:
+      Boolean(config.recipientAddress) && config.configErrors.length === 0,
+    configErrors: config.configErrors,
     contracts: ARC_CONTRACTS,
   };
 }

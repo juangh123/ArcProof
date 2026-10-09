@@ -107,6 +107,24 @@ export const orderProcessLimiter = createRateLimiter({
   windowMs: 10 * 60_000,
 });
 
+export const orderReadLimiter = createRateLimiter({
+  limit: 60,
+  windowMs: 10 * 60_000,
+});
+
+export function tooManyRequests(
+  rateLimit: { retryAfterSeconds: number },
+  message: string,
+) {
+  return Response.json(
+    { error: message },
+    {
+      status: 429,
+      headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+    },
+  );
+}
+
 export function getClientKey(request: Request) {
   const forwardedFor = request.headers
     .get("x-forwarded-for")

@@ -16,7 +16,9 @@ import { getClientKey, orderCreateLimiter } from "@/lib/server/rate-limit";
 import {
   MAX_FILE_SIZE,
   isUploadTooLarge,
+  readFormDataWithinLimit,
 } from "@/lib/server/upload-limit";
+import { UserFacingError } from "@/lib/server/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -34,6 +36,17 @@ export async function POST(request: Request) {
           "Retry-After": String(rateLimit.retryAfterSeconds),
         },
       },
+    );
+  }
+
+  if (config.configErrors.length > 0) {
+    logEvent("config.invalid", { errors: config.configErrors });
+    return NextResponse.json(
+      {
+        error:
+          "The service is not configured for payments right now. Try again later.",
+      },
+      { status: 503 },
     );
   }
 
@@ -56,7 +69,16 @@ export async function POST(request: Request) {
 
   try {
     cleanupStaleOrders();
-    const formData = await request.formData();
+    const upload = await readFormDataWithinLimit(request);
+
+    if (upload.status === "too-large") {
+      return NextResponse.json(
+        { error: "The request is too large. Upload a document up to 8 MB." },
+        { status: 413 },
+      );
+    }
+
+    const formData = upload.formData;
     const useSample = formData.get("sample") === "true";
     let sourceName = "Northstar quotation sample";
     let sourceKind = "text/plain";
@@ -121,14 +143,20 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof UserFacingError) {
+      logEvent("order.creation.rejected", { reason: error.message });
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    logEvent("order.creation.failed", {
+      reason: error instanceof Error ? error.message : "Unknown error.",
+    });
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "The quotation could not be prepared.",
+          "The quotation could not be prepared. Try again or contact support.",
       },
-      { status: 400 },
+      { status: 500 },
     );
   }
 }

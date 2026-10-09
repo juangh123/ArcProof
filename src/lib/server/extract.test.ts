@@ -5,13 +5,7 @@ import {
 } from "@/lib/server/extract";
 import { SAMPLE_QUOTE_TEXT } from "@/lib/server/sample";
 
-function textlessPdfBytes() {
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << >> /Contents 4 0 R >>",
-    "<< /Length 0 >>\nstream\n\nendstream",
-  ];
+function pdfBytesFromObjects(objects: string[]) {
   let body = "%PDF-1.4\n";
   const offsets: number[] = [];
 
@@ -29,6 +23,36 @@ function textlessPdfBytes() {
 
   body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
   return new TextEncoder().encode(body);
+}
+
+function textlessPdfBytes() {
+  return pdfBytesFromObjects([
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << >> /Contents 4 0 R >>",
+    "<< /Length 0 >>\nstream\n\nendstream",
+  ]);
+}
+
+function manyPagePdfBytes(pageCount: number) {
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    `<< /Type /Pages /Kids [${Array.from(
+      { length: pageCount },
+      (_, index) => `${index * 2 + 3} 0 R`,
+    ).join(" ")}] /Count ${pageCount} >>`,
+  ];
+
+  for (let index = 0; index < pageCount; index += 1) {
+    const pageObjectNumber = index * 2 + 3;
+    const contentObjectNumber = pageObjectNumber + 1;
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << >> /Contents ${contentObjectNumber} 0 R >>`,
+    );
+    objects.push("<< /Length 0 >>\nstream\n\nendstream");
+  }
+
+  return pdfBytesFromObjects(objects);
 }
 
 describe("extractQuoteHeuristically", () => {
@@ -139,5 +163,13 @@ describe("extractTextFromFile", () => {
     await expect(extractTextFromFile(file)).rejects.toThrow(
       "no embedded text",
     );
+  });
+
+  it("rejects a PDF with too many pages before extracting every page", async () => {
+    const file = new File([manyPagePdfBytes(75)], "huge.pdf", {
+      type: "application/pdf",
+    });
+
+    await expect(extractTextFromFile(file)).rejects.toThrow("too many pages");
   });
 });
