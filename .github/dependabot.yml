@@ -10,6 +10,17 @@ updates:
         dependency-type: production
       development-dependencies:
         dependency-type: development
+    ignore:
+      # These majors are not compatible with the current toolchain:
+      # eslint-config-next 16.3.8 cannot load typescript-eslint under
+      # eslint 10 + TypeScript 7, and this project targets Node 24.
+      # Remove an entry once the ecosystem supports the new major.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
