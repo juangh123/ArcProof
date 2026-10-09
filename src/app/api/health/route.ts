@@ -47,9 +47,12 @@ export async function GET() {
     rpcChainId === config.chainId &&
     configured &&
     config.configErrors.length === 0;
+  // An explicit ARCPROOF_VERSION wins so deployments made with `railway up`
+  // can still report the revision they shipped; RAILWAY_GIT_COMMIT_SHA is
+  // only refreshed by GitHub-triggered deployments.
   const version =
-    process.env.RAILWAY_GIT_COMMIT_SHA ??
     process.env.ARCPROOF_VERSION ??
+    process.env.RAILWAY_GIT_COMMIT_SHA ??
     "development";
 
   return NextResponse.json(
