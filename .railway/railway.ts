@@ -39,6 +39,7 @@ export default defineRailway(() => {
       OPENAI_MODEL: preserve(),
       NEXT_PUBLIC_SITE_URL: preserve(),
       NEXT_PUBLIC_REVIEW_PROOF_ID: preserve(),
+      BACKUP_TOKEN: preserve(),
     },
     volumeMounts: {
       "/data": data,

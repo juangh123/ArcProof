@@ -7,7 +7,7 @@ import {
   backupDatabase,
   pruneBackups,
   resolveBackupPaths,
-} from "./backup-sqlite.mjs";
+} from "../src/lib/server/sqlite-backup.ts";
 
 let directories = [];
 
