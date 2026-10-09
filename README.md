@@ -117,6 +117,7 @@ CI and the production Docker image leave standalone output enabled.
 | `OPENAI_MODEL` | No | Model name, default `gpt-5.6-terra` |
 | `ARCPROOF_DATA_DIR` | No | SQLite directory, default `./data` |
 | `ARCPROOF_DATABASE_PATH` | No | Full SQLite file path override |
+| `BACKUP_TOKEN` | No | Enables the protected `POST /api/admin/backup` endpoint used by scheduled backups |
 
 Production environment:
 

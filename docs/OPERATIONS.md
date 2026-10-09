@@ -14,17 +14,21 @@
 
 ## Backups
 
-Take an online backup with the bundled script:
+Backups run inside the application container with SQLite's `VACUUM INTO`, which is safe while the service keeps running. Two ways to trigger one:
 
-```bash
-ARCPROOF_DATA_DIR=/data node scripts/backup-sqlite.mjs   # or: pnpm backup
-```
+1. Scheduled (recommended). Set `BACKUP_TOKEN` and call the protected endpoint from any external scheduler:
 
-The script uses SQLite's `VACUUM INTO` (safe while the service is running), verifies the copy with `PRAGMA integrity_check`, and prunes older files so only the newest `ARCPROOF_BACKUP_KEEP` (default 7) remain in `<ARCPROOF_DATA_DIR>/backups`. Point `ARCPROOF_BACKUP_DIR` elsewhere to keep them on a different volume.
+   ```bash
+   curl -fsS -X POST https://<your-domain>/api/admin/backup \
+     -H "Authorization: Bearer $BACKUP_TOKEN"
+   # {"ok":true,"backup":{"file":"arcproof-...sqlite","orders":12,"pruned":[],"keep":7}}
+   ```
 
-The production image ships the script at `/app/scripts/backup-sqlite.mjs` and runs as the `nextjs` user that owns `/data`, so `node scripts/backup-sqlite.mjs` works inside the container.
+   The endpoint returns `503` while `BACKUP_TOKEN` is unset, `401` for a wrong token, `409` while another backup is running and `500` when the snapshot fails. It is limited to six calls per hour per client and reports the copied row count.
 
-To automate it, add a scheduled job in Railway that runs `node scripts/backup-sqlite.mjs` with the same volume mounted at `/data`, and declare it in `.railway/railway.ts` when the IaC workflow is available.
+2. Inside the container: `railway ssh --service ArcProof node /app/scripts/backup-sqlite.mjs`, or `pnpm backup` in a local checkout.
+
+Both paths verify the copy with `PRAGMA integrity_check` and prune older files so only the newest `ARCPROOF_BACKUP_KEEP` (default 7) remain under `<ARCPROOF_DATA_DIR>/backups`; point `ARCPROOF_BACKUP_DIR` at another volume to keep them elsewhere.
 
 For a raw copy instead, back up the entire SQLite directory including `arcproof.sqlite`, `arcproof.sqlite-wal`, and `arcproof.sqlite-shm`; stop the service before copying files that way. Do not restore a database while the service is running.
 

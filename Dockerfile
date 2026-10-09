@@ -34,9 +34,10 @@ RUN apk add --no-cache su-exec \
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-# Ship the online backup script so a scheduled job can snapshot /data with
-# the same image. It only uses Node built-ins, so no dependencies are needed.
+# Ship the online backup entry points: the CLI wrapper plus the shared core it
+# imports (Node 24 strips the types). Both only use Node built-ins.
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/backup-sqlite.mjs ./scripts/backup-sqlite.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/server/sqlite-backup.ts ./src/lib/server/sqlite-backup.ts
 COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh

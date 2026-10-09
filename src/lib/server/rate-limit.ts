@@ -112,6 +112,11 @@ export const orderReadLimiter = createRateLimiter({
   windowMs: 10 * 60_000,
 });
 
+export const backupLimiter = createRateLimiter({
+  limit: 6,
+  windowMs: 60 * 60_000,
+});
+
 export function tooManyRequests(
   rateLimit: { retryAfterSeconds: number },
   message: string,
