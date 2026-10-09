@@ -26,6 +26,20 @@ export function QuoteResultView({
   const quote = order.quoteResult;
 
   if (!quote) {
+    if (order.resultRedactedAt) {
+      return (
+        <div className="empty-state">
+          <FileText size={26} strokeWidth={1.7} />
+          <strong>Stored result expired</strong>
+          <span>
+            The quotation payload was removed by the retention policy on{" "}
+            {new Date(order.resultRedactedAt).toISOString().slice(0, 10)}. The
+            payment receipt remains available.
+          </span>
+        </div>
+      );
+    }
+
     return (
       <div className="empty-state">
         <FileText size={26} strokeWidth={1.7} />

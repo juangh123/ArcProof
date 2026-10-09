@@ -107,6 +107,9 @@ function rowToOrder(row: Record<string, unknown>): OrderRecord {
     processingStartedAt: row.processing_started_at
       ? String(row.processing_started_at)
       : null,
+    resultRedactedAt: row.result_redacted_at
+      ? String(row.result_redacted_at)
+      : null,
   };
 }
 
@@ -473,4 +476,44 @@ export function cleanupStaleOrders(maxAgeMs = ORDER_RETENTION_MS) {
       )
       .run(cutoff).changes,
   );
+}
+
+// Drops the stored quotation payload of long-completed orders while keeping
+// the payment evidence (transaction, payer, amounts, receipt) intact. Orders
+// listed as exempt keep their result, which is how the published demo receipt
+// survives a retention window.
+export function redactExpiredResults(
+  maxAgeMs: number,
+  exemptPublicIds: string[] = [],
+  now = Date.now(),
+) {
+  const timestamp = new Date(now).toISOString();
+  const cutoff = new Date(now - maxAgeMs).toISOString();
+  const exemption = exemptPublicIds.length
+    ? ` AND public_id NOT IN (${exemptPublicIds.map(() => "?").join(", ")})`
+    : "";
+  const rows = getDatabase()
+    .prepare(
+      `UPDATE orders
+       SET quote_result = NULL, extraction_mode = NULL,
+           result_redacted_at = ?, updated_at = ?
+       WHERE status = 'completed'
+         AND quote_result IS NOT NULL
+         AND processed_at IS NOT NULL
+         AND processed_at < ?
+         ${exemption}
+       RETURNING id, public_id`,
+    )
+    .all(timestamp, timestamp, cutoff, ...exemptPublicIds) as Array<{
+    id: string;
+    public_id: string;
+  }>;
+
+  return rows.map((row) => {
+    addOrderEvent(String(row.id), "result.redacted", {
+      publicId: String(row.public_id),
+    });
+
+    return String(row.public_id);
+  });
 }

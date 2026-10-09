@@ -36,12 +36,17 @@ export async function GET(
 
   const response = csvResponse(order);
 
-  return (
-    response ??
-    Response.json(
-      { error: "The processed quotation was not found." },
-      { status: 404 },
-    )
+  if (response) {
+    return response;
+  }
+
+  return Response.json(
+    {
+      error: order.resultRedactedAt
+        ? "The stored result expired and is no longer available."
+        : "The processed quotation was not found.",
+    },
+    { status: order.resultRedactedAt ? 410 : 404 },
   );
 }
 

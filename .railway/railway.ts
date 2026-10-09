@@ -40,6 +40,8 @@ export default defineRailway(() => {
       NEXT_PUBLIC_SITE_URL: preserve(),
       NEXT_PUBLIC_REVIEW_PROOF_ID: preserve(),
       BACKUP_TOKEN: preserve(),
+      ARCPROOF_RESULT_RETENTION_DAYS: preserve(),
+      ARCPROOF_RETENTION_EXEMPT_IDS: preserve(),
     },
     volumeMounts: {
       "/data": data,

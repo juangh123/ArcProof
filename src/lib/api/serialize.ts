@@ -35,6 +35,7 @@ export function serializeOrder(order: OrderRecord, events: OrderEvent[] = []) {
     updatedAt: order.updatedAt,
     verifiedAt: order.verifiedAt,
     processedAt: order.processedAt,
+    resultRedactedAt: order.resultRedactedAt,
     proofUrl: `/proof/${order.publicId}`,
     events: events.map((event) => ({
       type: event.type,

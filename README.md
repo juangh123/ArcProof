@@ -118,6 +118,8 @@ CI and the production Docker image leave standalone output enabled.
 | `ARCPROOF_DATA_DIR` | No | SQLite directory, default `./data` |
 | `ARCPROOF_DATABASE_PATH` | No | Full SQLite file path override |
 | `BACKUP_TOKEN` | No | Enables the protected `POST /api/admin/backup` endpoint used by scheduled backups |
+| `ARCPROOF_RESULT_RETENTION_DAYS` | No | Drop the stored quotation payload of completed orders after this many days (unset keeps results) |
+| `ARCPROOF_RETENTION_EXEMPT_IDS` | No | Comma-separated public ids that must never expire under the retention policy |
 
 Production environment:
 
@@ -206,6 +208,7 @@ The browser suite covers the complete sample flow and public receipt on desktop 
 - Extracted source text is discarded after preflight validation; the validated draft is held server-side until payment or expiry.
 - Payment requests expire for new payments after seven days; the window is enforced in the browser. A payment that already exists on Arc is still verified after the window and the order is retained for manual resolution, while unpaid or rejected records are purged after 30 days.
 - A failed fulfillment can be retried up to five times before it needs manual support.
+- Completed results are kept indefinitely unless `ARCPROOF_RESULT_RETENTION_DAYS` is set; redaction removes only the quotation payload, while the payment receipt, transaction evidence and public receipt stay available. Published receipts can be protected with `ARCPROOF_RETENTION_EXEMPT_IDS`.
 - The public proof page exposes payment facts and aggregate result metadata only.
 - The service does not provide custody, exchange, tax advice, or accounting services.
 - The first version uses one fixed price, one application instance, and EOA wallets only.

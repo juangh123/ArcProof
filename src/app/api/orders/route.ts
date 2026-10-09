@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getArcRuntimeConfig } from "@/lib/arc/config";
 import { serializeOrder } from "@/lib/api/serialize";
 import {
-  cleanupStaleOrders,
   createOrder,
   getOrderEvents,
 } from "@/lib/server/repository";
@@ -19,6 +18,7 @@ import {
   readFormDataWithinLimit,
 } from "@/lib/server/upload-limit";
 import { UserFacingError } from "@/lib/server/errors";
+import { runRetention } from "@/lib/server/retention";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -68,7 +68,17 @@ export async function POST(request: Request) {
   }
 
   try {
-    cleanupStaleOrders();
+    const retention = runRetention();
+
+    if (
+      retention.deletedOrders > 0 ||
+      retention.redactedPublicIds.length > 0
+    ) {
+      logEvent("retention.applied", {
+        deletedOrders: retention.deletedOrders,
+        redactedResults: retention.redactedPublicIds.length,
+      });
+    }
     const upload = await readFormDataWithinLimit(request);
 
     if (upload.status === "too-large") {
