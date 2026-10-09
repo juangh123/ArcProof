@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { serializeOrder } from "@/lib/api/serialize";
+import { processVerifiedOrder } from "@/lib/server/order-processing";
+import { getOrderById, getOrderEvents } from "@/lib/server/repository";
 import {
-  claimOrderForProcessing,
-  completeOrder,
-  failOrder,
-  getOrderById,
-  getOrderEvents,
-} from "@/lib/server/repository";
-import { extractQuoteFromText } from "@/lib/server/extract";
-import { logEvent } from "@/lib/server/logger";
-import { getClientKey, orderProcessLimiter } from "@/lib/server/rate-limit";
+  getClientKey,
+  orderProcessLimiter,
+  tooManyRequests,
+} from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -22,14 +19,9 @@ export async function POST(
   const rateLimit = orderProcessLimiter.check(getClientKey(request));
 
   if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: "Too many processing requests. Try again shortly." },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(rateLimit.retryAfterSeconds),
-        },
-      },
+    return tooManyRequests(
+      rateLimit,
+      "Too many processing requests. Try again shortly.",
     );
   }
 
@@ -39,114 +31,21 @@ export async function POST(
     return NextResponse.json({ error: "Order not found." }, { status: 404 });
   }
 
-  if (order.status === "completed") {
+  const outcome = await processVerifiedOrder(order);
+
+  if (outcome.status === "completed" || outcome.status === "already_completed") {
     return NextResponse.json({
-      order: serializeOrder(order, getOrderEvents(order.id)),
+      order: serializeOrder(outcome.order, getOrderEvents(outcome.order.id)),
     });
   }
 
-  if (
-    order.status !== "payment_verified" &&
-    order.status !== "failed" &&
-    order.status !== "processing"
-  ) {
-    return NextResponse.json(
-      { error: "The Arc payment must be verified before processing." },
-      { status: 409 },
-    );
-  }
-
-  const processingAttempt = claimOrderForProcessing(order.id);
-
-  if (!processingAttempt) {
-    const current = getOrderById(order.id);
-    return NextResponse.json(
-      {
-        error:
-          order.status === "processing"
-            ? "The order is already being processed and its lease has not expired."
-            : "The order could not be claimed for processing.",
-        order: current
-          ? serializeOrder(current, getOrderEvents(order.id))
-          : null,
-      },
-      { status: 409 },
-    );
-  }
-
-  try {
-    const quote = order.quoteResult
-      ? order.quoteResult
-      : order.sourceText
-        ? await extractQuoteFromText(order.sourceText)
-        : null;
-
-    if (!quote) {
-      throw new Error(
-        "The stored quotation result is unavailable. Contact support for a refund.",
-      );
-    }
-
-    if (quote.lineItems.length === 0) {
-      // Do not release a paid, empty result. Keep it retryable without a
-      // second payment and surface it as a failed job for manual follow-up.
-      throw new Error(
-        "No line items were detected. Retry the document or contact support for a refund.",
-      );
-    }
-
-    const completedNow = completeOrder(
-      order.id,
-      quote,
-      processingAttempt,
-    );
-
-    if (!completedNow) {
-      return NextResponse.json(
-        { error: "This processing lease was replaced by a newer attempt." },
-        { status: 409 },
-      );
-    }
-
-    const completed = getOrderById(order.id);
-    logEvent("order.processing.completed", {
-      publicId: order.publicId,
-      extractionMode: quote.extractionMode,
-      lineItems: quote.lineItems.length,
-    });
-
-    return NextResponse.json({
-      order: completed
-        ? serializeOrder(completed, getOrderEvents(order.id))
+  return NextResponse.json(
+    {
+      error: outcome.error,
+      order: outcome.order
+        ? serializeOrder(outcome.order, getOrderEvents(outcome.order.id))
         : null,
-    });
-  } catch (error) {
-    logEvent("order.processing.failed", {
-      publicId: order.publicId,
-      reason:
-        error instanceof Error
-          ? error.message
-          : "Unknown processing error.",
-    });
-    failOrder(
-      order.id,
-      error instanceof Error
-        ? error.message
-        : "The quotation could not be processed.",
-      processingAttempt,
-    );
-    const failed = getOrderById(order.id);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "The quotation could not be processed.",
-        order: failed
-          ? serializeOrder(failed, getOrderEvents(order.id))
-          : null,
-      },
-      { status: 500 },
-    );
-  }
+    },
+    { status: outcome.status === "failed" ? 500 : 409 },
+  );
 }

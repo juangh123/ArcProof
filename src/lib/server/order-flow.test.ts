@@ -3,13 +3,16 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { GET as csvGet } from "@/app/api/orders/[id]/csv/route";
+import { GET as orderGet } from "@/app/api/orders/[id]/route";
 import { GET as publicCsvGet } from "@/app/api/proof/[id]/csv/route";
 import { POST as processPost } from "@/app/api/orders/[id]/process/route";
+import { POST as resumePost } from "@/app/api/proof/[id]/resume/route";
 import { POST as verifyPost } from "@/app/api/orders/[id]/verify/route";
 import { POST as ordersPost } from "@/app/api/orders/route";
 import type { OrderRecord, PaymentProof } from "@/lib/domain/order";
 import { resetDatabaseForTests } from "@/lib/server/db";
 import {
+  MAX_PROCESSING_ATTEMPTS,
   claimOrderForProcessing,
   createOrder,
   failOrder,
@@ -82,6 +85,15 @@ function processRequest(id: string) {
   );
 }
 
+function resumeRequest(publicId: string) {
+  return resumePost(
+    new Request(`http://localhost/api/proof/${publicId}/resume`, {
+      method: "POST",
+    }),
+    routeContext(publicId),
+  );
+}
+
 function ordersRequest(formData: FormData) {
   return ordersPost(
     new Request("http://localhost/api/orders", {
@@ -122,6 +134,24 @@ afterAll(() => {
 });
 
 describe("verify route", () => {
+  it("refuses to verify an order created for a different network", async () => {
+    const order = createTestOrder(SAMPLE_QUOTE_TEXT);
+    process.env.ARC_NETWORK = "mainnet";
+    process.env.ARC_PAYMENT_MODE = "live";
+
+    try {
+      const response = await verifyRequest(order.id, `0x${"9".repeat(64)}`);
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({
+        error: expect.stringContaining("different Arc network"),
+      });
+    } finally {
+      process.env.ARC_NETWORK = "testnet";
+      process.env.ARC_PAYMENT_MODE = "fixture";
+    }
+  });
+
   it("does not downgrade an order that already recorded a payment", async () => {
     const order = createTestOrder(SAMPLE_QUOTE_TEXT);
     const txHash = `0x${"b".repeat(64)}` as const;
@@ -243,6 +273,32 @@ describe("verify route", () => {
 });
 
 describe("order creation preflight", () => {
+  it("returns a stored order without releasing its draft early", async () => {
+    const order = createTestOrder(SAMPLE_QUOTE_TEXT);
+
+    const response = await orderGet(
+      new Request(`http://localhost/api/orders/${order.id}`),
+      routeContext(order.id),
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      order: { id: string; status: string; quoteResult: unknown };
+    };
+    expect(payload.order.id).toBe(order.id);
+    expect(payload.order.status).toBe("awaiting_payment");
+    expect(payload.order.quoteResult).toBeNull();
+  });
+
+  it("returns 404 for an unknown order id", async () => {
+    const response = await orderGet(
+      new Request("http://localhost/api/orders/missing-order"),
+      routeContext("missing-order"),
+    );
+
+    expect(response.status).toBe(404);
+  });
+
   it("rejects an unextractable document before creating a payment order", async () => {
     const before = listRecentOrders(100).length;
     const formData = new FormData();
@@ -336,6 +392,49 @@ describe("process route", () => {
   });
 });
 
+describe("resume route", () => {
+  it("refuses to process an order whose payment is not verified", async () => {
+    const order = createTestOrder(SAMPLE_QUOTE_TEXT);
+
+    const response = await resumeRequest(order.publicId);
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining("must be verified"),
+    });
+  });
+
+  it("completes a verified order from its public receipt", async () => {
+    const order = createTestOrder(SAMPLE_QUOTE_TEXT);
+    recordVerifiedPayment(order.id, proofFor(`0x${"c".repeat(64)}`, order));
+
+    const response = await resumeRequest(order.publicId);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ status: "completed" });
+    expect(getOrderById(order.id)?.status).toBe("completed");
+  });
+
+  it("reports the retry limit instead of reclaiming a permanently failed order", async () => {
+    const order = createTestOrder("Just a friendly note with no table.");
+    recordVerifiedPayment(order.id, proofFor(`0x${"d".repeat(64)}`, order));
+
+    for (let attempt = 1; attempt <= MAX_PROCESSING_ATTEMPTS; attempt += 1) {
+      const claimed = claimOrderForProcessing(order.id);
+
+      expect(claimed).toBe(attempt);
+      failOrder(order.id, "parser failed", claimed!);
+    }
+
+    const response = await resumeRequest(order.publicId);
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining("retry limit"),
+    });
+  });
+});
+
 describe("csv export", () => {
   it("neutralizes spreadsheet formulas in untrusted cells", () => {
     expect(csvCell("=1+1")).toBe('"\'=1+1"');
@@ -345,6 +444,44 @@ describe("csv export", () => {
     expect(csvCell("Plain text")).toBe('"Plain text"');
     expect(csvCell(3)).toBe('"3"');
     expect(csvCell('He said "hi"')).toBe('"He said ""hi"""');
+  });
+
+  it("withholds the CSV until the paid order is completed", async () => {
+    const formData = new FormData();
+    formData.set("sample", "true");
+
+    const createdResponse = await ordersRequest(formData);
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as {
+      order: { id: string; publicId: string; status: string };
+    };
+    expect(created.order.status).toBe("awaiting_payment");
+
+    const unpaidPrivate = await csvGet(
+      new Request(`http://localhost/api/orders/${created.order.id}/csv`),
+      routeContext(created.order.id),
+    );
+    expect(unpaidPrivate.status).toBe(404);
+
+    const unpaidPublic = await publicCsvGet(
+      new Request(`http://localhost/api/proof/${created.order.publicId}/csv`),
+      routeContext(created.order.publicId),
+    );
+    expect(unpaidPublic.status).toBe(404);
+
+    const stored = getOrderById(created.order.id);
+    expect(stored).not.toBeNull();
+    recordVerifiedPayment(stored!.id, proofFor(`0x${"8".repeat(64)}`, stored!));
+
+    const processed = await processRequest(stored!.id);
+    expect(processed.status).toBe(200);
+
+    const paidPrivate = await csvGet(
+      new Request(`http://localhost/api/orders/${stored!.id}/csv`),
+      routeContext(stored!.id),
+    );
+    expect(paidPrivate.status).toBe(200);
+    await expect(paidPrivate.text()).resolves.toContain("ALU-6061");
   });
 
   it("returns the exported CSV through the route", async () => {

@@ -2,7 +2,6 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { getAddress, keccak256, parseUnits, stringToHex } from "viem";
 import { getDatabase } from "@/lib/server/db";
 import {
-  orderStatusLabels,
   type OrderEvent,
   type OrderRecord,
   type OrderStatus,
@@ -37,6 +36,7 @@ export class TransactionReuseError extends Error {
 
 const SQLITE_CONSTRAINT_UNIQUE = 2067;
 const ORDER_RETENTION_MS = 30 * 24 * 60 * 60_000;
+export const MAX_PROCESSING_ATTEMPTS = 5;
 
 function now() {
   return new Date().toISOString();
@@ -120,7 +120,9 @@ function findOrderRow(column: "id" | "public_id", value: string) {
 export function createOrder(input: CreateOrderInput) {
   const database = getDatabase();
   const id = randomUUID();
-  const publicId = `AP-${randomBytes(4).toString("hex").toUpperCase()}`;
+  // Eight random bytes keep public receipt identifiers out of brute-force
+  // range now that the quoted result is downloadable by public id.
+  const publicId = `AP-${randomBytes(8).toString("hex").toUpperCase()}`;
   const paymentMemoId = keccak256(
     stringToHex(`${id}:${randomBytes(16).toString("hex")}`),
   );
@@ -364,6 +366,7 @@ export function claimOrderForProcessing(orderId: string) {
        SET status = ?, processing_attempts = processing_attempts + 1,
            processing_started_at = ?, updated_at = ?
        WHERE id = ?
+         AND processing_attempts < ?
          AND (
            status = 'payment_verified'
            OR status = 'failed'
@@ -379,6 +382,7 @@ export function claimOrderForProcessing(orderId: string) {
       timestamp,
       timestamp,
       orderId,
+      MAX_PROCESSING_ATTEMPTS,
       leaseCutoff,
     ) as { processing_attempts: number } | undefined;
 
@@ -448,10 +452,6 @@ export function failOrder(
 
   addOrderEvent(orderId, "processing.failed", { message });
   return true;
-}
-
-export function getStatusLabel(status: OrderStatus) {
-  return orderStatusLabels[status];
 }
 
 export function cleanupStaleOrders(maxAgeMs = ORDER_RETENTION_MS) {

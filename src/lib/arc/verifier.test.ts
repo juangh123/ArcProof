@@ -4,9 +4,10 @@ import {
   getAddress,
   keccak256,
   parseAbiParameters,
+  TransactionReceiptNotFoundError,
 } from "viem";
 import type { Address, Hex, Log } from "viem";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   encodeMemoTransfer,
   memoAbi,
@@ -14,9 +15,27 @@ import {
 } from "@/lib/arc/abi";
 import { ARC_CONTRACTS } from "@/lib/arc/config";
 import {
+  verifyArcPayment,
   verifyArcPaymentArtifacts,
   type ArcPaymentArtifacts,
 } from "@/lib/arc/verifier";
+
+const { mockClient } = vi.hoisted(() => ({
+  mockClient: {
+    getChainId: vi.fn(),
+    getTransactionReceipt: vi.fn(),
+    getTransaction: vi.fn(),
+  },
+}));
+
+vi.mock("viem", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("viem")>();
+
+  return {
+    ...actual,
+    createPublicClient: () => mockClient,
+  };
+});
 
 const txHash = `0x${"1".repeat(64)}` as Hex;
 const blockHash = `0x${"2".repeat(64)}` as Hex;
@@ -239,5 +258,100 @@ describe("verifyArcPaymentArtifacts", () => {
       status: "rejected",
       reason: "The Arc transaction reverted.",
     });
+  });
+});
+
+describe("verifyArcPayment", () => {
+  const originalEnv = {
+    ARC_NETWORK: process.env.ARC_NETWORK,
+    ARC_PAYMENT_MODE: process.env.ARC_PAYMENT_MODE,
+  };
+
+  const verifyInput = {
+    txHash,
+    expectedMemoId: memoId,
+    expectedAmountUsdc: "0.10",
+    expectedRecipient: recipient,
+  };
+
+  beforeEach(() => {
+    process.env.ARC_NETWORK = "mainnet";
+    process.env.ARC_PAYMENT_MODE = "live";
+    mockClient.getChainId.mockReset();
+    mockClient.getTransactionReceipt.mockReset();
+    mockClient.getTransaction.mockReset();
+  });
+
+  afterEach(() => {
+    for (const [name, value] of Object.entries(originalEnv)) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  });
+
+  it("treats an unmined transaction as pending", async () => {
+    mockClient.getChainId.mockResolvedValue(5_042);
+    mockClient.getTransactionReceipt.mockRejectedValue(
+      new TransactionReceiptNotFoundError({ hash: txHash }),
+    );
+
+    await expect(verifyArcPayment(verifyInput)).resolves.toEqual({
+      status: "pending",
+    });
+    expect(mockClient.getTransaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects a receipt served by an RPC on the wrong chain", async () => {
+    mockClient.getChainId.mockResolvedValue(1);
+
+    const result = await verifyArcPayment(verifyInput);
+
+    expect(result.status).toBe("rejected");
+
+    if (result.status === "rejected") {
+      expect(result.reason).toContain("configured RPC returned chain 1");
+    }
+
+    expect(mockClient.getTransactionReceipt).not.toHaveBeenCalled();
+  });
+
+  it("verifies a final Arc receipt fetched over RPC", async () => {
+    const artifacts = createArtifacts();
+    mockClient.getChainId.mockResolvedValue(5_042);
+    mockClient.getTransactionReceipt.mockResolvedValue({
+      status: "success",
+      blockNumber: artifacts.receipt.blockNumber,
+      blockHash: artifacts.receipt.blockHash,
+      logs: artifacts.receipt.logs,
+    });
+    mockClient.getTransaction.mockResolvedValue({
+      chainId: 5_042,
+      from: payer,
+      to: ARC_CONTRACTS.memo,
+      input: payment.data,
+    });
+
+    const result = await verifyArcPayment(verifyInput);
+
+    expect(result.status).toBe("verified");
+
+    if (result.status === "verified") {
+      expect(result.proof.txHash).toBe(txHash);
+      expect(result.proof.amountErc20Atomic).toBe("100000");
+    }
+  });
+
+  it("propagates RPC failures so the route can release the claim", async () => {
+    mockClient.getChainId.mockResolvedValue(5_042);
+    mockClient.getTransactionReceipt.mockRejectedValue(
+      new Error("rpc unavailable"),
+    );
+
+    await expect(verifyArcPayment(verifyInput)).rejects.toThrow(
+      "rpc unavailable",
+    );
   });
 });

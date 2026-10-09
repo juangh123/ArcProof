@@ -139,6 +139,10 @@ try {
       `public deployment uses ${expectedPaymentMode} payment mode`,
     );
     check(health.configured === true, "public deployment has a recipient");
+    check(
+      !(health.configErrors?.length > 0),
+      `public deployment configuration is valid${health.configErrors?.length ? `: ${health.configErrors.join("; ")}` : ""}`,
+    );
     const expectedQuotePrice =
       process.env.EXPECTED_QUOTE_PRICE_USDC?.trim() || "0.10";
     check(

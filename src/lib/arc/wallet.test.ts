@@ -12,6 +12,7 @@ const config: PublicArcConfig = {
   recipientAddress: "0x1111111111111111111111111111111111111111",
   quotePriceUsdc: "0.10",
   configured: true,
+  configErrors: [],
   contracts: {
     usdc: "0x3600000000000000000000000000000000000000",
     memo: "0x5294E9927c3306DcBaDb03fe70b92e01cCede505",

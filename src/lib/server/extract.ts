@@ -1,10 +1,12 @@
-import { extractText } from "unpdf";
+import { extractText, getDocumentProxy } from "unpdf";
 import OpenAI from "openai";
 import { quoteResultSchema, validateQuote } from "@/lib/domain/quote";
 import type {
   QuoteLineItem,
   QuoteResult,
 } from "@/lib/domain/quote";
+import { UserFacingError } from "@/lib/server/errors";
+import { logEvent } from "@/lib/server/logger";
 
 const MAX_EXTRACTED_CHARACTERS = 200_000;
 const MAX_AI_CHARACTERS = 60_000;
@@ -375,6 +377,12 @@ export async function extractQuoteFromText(text: string) {
   try {
     return await extractQuoteWithAi(text);
   } catch (error) {
+    // Keep provider details server-side; validation issues are shown to the
+    // paying customer after processing.
+    logEvent("extraction.ai_failed", {
+      reason:
+        error instanceof Error ? error.message : "Unknown AI extraction error.",
+    });
     const fallback = extractQuoteHeuristically(text);
     return {
       ...fallback,
@@ -384,9 +392,7 @@ export async function extractQuoteFromText(text: string) {
           code: "AI_FALLBACK",
           severity: "warning" as const,
           message:
-            error instanceof Error
-              ? `AI extraction failed and the deterministic parser was used: ${error.message}`
-              : "AI extraction failed and the deterministic parser was used.",
+            "AI extraction failed and the deterministic parser was used.",
         },
       ],
     };
@@ -413,43 +419,70 @@ export async function extractTextFromFile(file: File) {
 
   if (isPdf) {
     if (!hasPdfSignature(bytes)) {
-      throw new Error("The uploaded file is not a valid PDF document.");
+      throw new UserFacingError(
+        "The uploaded file is not a valid PDF document.",
+      );
     }
 
-    let pdfText = "";
-    let totalPages = 0;
+    let document: Awaited<ReturnType<typeof getDocumentProxy>>;
 
     try {
-      const result = await extractText(bytes, { mergePages: true });
-      pdfText = result.text;
-      totalPages = result.totalPages;
+      document = await getDocumentProxy(bytes);
     } catch {
-      throw new Error(
+      throw new UserFacingError(
         "The PDF could not be read. It may be corrupted or password-protected.",
       );
     }
 
-    if (totalPages > MAX_PDF_PAGES) {
-      throw new Error(
-        `The PDF has too many pages (maximum ${MAX_PDF_PAGES}).`,
-      );
-    }
+    try {
+      // Check the page count before extracting text from every page, so a
+      // huge document cannot monopolize the single Node.js thread.
+      if (document.numPages > MAX_PDF_PAGES) {
+        throw new UserFacingError(
+          `The PDF has too many pages (maximum ${MAX_PDF_PAGES}).`,
+        );
+      }
 
-    text = pdfText;
+      const result = await extractText(document, { mergePages: true });
+
+      if (result.totalPages > MAX_PDF_PAGES) {
+        throw new UserFacingError(
+          `The PDF has too many pages (maximum ${MAX_PDF_PAGES}).`,
+        );
+      }
+
+      text = result.text;
+    } catch (error) {
+      if (error instanceof UserFacingError) {
+        throw error;
+      }
+
+      throw new UserFacingError(
+        "The PDF could not be read. It may be corrupted or password-protected.",
+      );
+    } finally {
+      // unpdf only cleans up documents it loaded itself, so release the pdf.js
+      // worker for the proxy we created here.
+      await document.loadingTask.destroy().catch(() => {});
+    }
   } else if (isText) {
     if (!looksLikeText(bytes)) {
-      throw new Error("The uploaded text file contains binary data.");
+      throw new UserFacingError(
+        "The uploaded text file contains binary data.",
+      );
     }
 
     text = new TextDecoder().decode(bytes);
   } else {
-    throw new Error("Only PDF, TXT, and Markdown documents are supported.");
+    throw new UserFacingError(
+      "Only PDF, TXT, and Markdown documents are supported.",
+    );
   }
 
   const normalized = text.replace(/\u0000/g, "").trim();
 
   if (!normalized) {
-    throw new Error(
+    throw new UserFacingError(
       isPdf
         ? "This PDF has no embedded text. Scanned or image-only PDFs are not supported; upload a text-based PDF or a plain-text export."
         : "No readable text was found in the document.",
@@ -457,7 +490,7 @@ export async function extractTextFromFile(file: File) {
   }
 
   if (normalized.length > MAX_EXTRACTED_CHARACTERS) {
-    throw new Error("The extracted document is too large.");
+    throw new UserFacingError("The extracted document is too large.");
   }
 
   return normalized;

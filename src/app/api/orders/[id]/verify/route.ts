@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isHash } from "viem";
 import { serializeOrder } from "@/lib/api/serialize";
+import { getArcRuntimeConfig } from "@/lib/arc/config";
 import { verifyArcPayment } from "@/lib/arc/verifier";
 import {
   OrderConflictError,
@@ -36,10 +37,36 @@ export async function POST(
     );
   }
 
+  const config = getArcRuntimeConfig();
+
+  if (config.configErrors.length > 0) {
+    logEvent("config.invalid", { errors: config.configErrors });
+    return NextResponse.json(
+      {
+        error:
+          "The service is not configured for payments right now. Try again later.",
+      },
+      { status: 503 },
+    );
+  }
+
   const order = getOrderById(id);
 
   if (!order) {
     return NextResponse.json({ error: "Order not found." }, { status: 404 });
+  }
+
+  // Verification compares the receipt against the live deployment config, so
+  // refuse orders that were created for a different Arc network instead of
+  // checking them against the wrong chain.
+  if (order.network !== config.network || order.chainId !== config.chainId) {
+    return NextResponse.json(
+      {
+        error:
+          "This payment request was created for a different Arc network. Create a new order before paying.",
+      },
+      { status: 409 },
+    );
   }
 
   const body = (await request.json().catch(() => null)) as {
@@ -171,7 +198,15 @@ export async function POST(
       );
     }
 
-    releaseVerificationClaim(order.id, message);
+    logEvent("payment.verification.failed", {
+      publicId: order.publicId,
+      txHash,
+      reason: message,
+    });
+    releaseVerificationClaim(
+      order.id,
+      "Arc verification failed. Try again shortly.",
+    );
     return NextResponse.json(
       { error: "Arc verification failed. Try again shortly." },
       { status: 503 },
