@@ -2,3 +2,9 @@ allowBuilds:
   esbuild: true
   sharp: false
   unrs-resolver: false
+
+# Keep patched versions of transitive dependencies that pnpm would otherwise
+# resolve to a vulnerable release (see GHSA-wq5f-xc86-pv6w, GHSA-68fv-2mgg-jv7q).
+overrides:
+  sharp: ^0.35.5
+  source-map-js: ^1.2.2

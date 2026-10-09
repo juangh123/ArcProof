@@ -11,6 +11,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     ".playwright/**",
     ".playwright-cli/**",
+    "coverage/**",
     "out/**",
     "build/**",
     "playwright-report/**",
