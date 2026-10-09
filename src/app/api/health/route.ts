@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
 import { getArcRuntimeConfig } from "@/lib/arc/config";
 import { getDatabase } from "@/lib/server/db";
+import { readCachedRpcChainId } from "@/lib/server/health-cache";
 
 export const runtime = "nodejs";
 
@@ -37,12 +38,7 @@ export async function GET() {
     transport: http(config.rpcUrl, { timeout: 10_000 }),
   });
 
-  let rpcChainId: number | null = null;
-  try {
-    rpcChainId = await client.getChainId();
-  } catch {
-    rpcChainId = null;
-  }
+  const rpcChainId = await readCachedRpcChainId(client);
 
   const configured = Boolean(config.recipientAddress);
   const ok =

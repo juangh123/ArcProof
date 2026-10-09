@@ -88,6 +88,7 @@ awaiting_payment
 - Payment recording uses a conditional update, so the first verified transaction wins.
 - Verification refuses orders that were created for a different Arc network or chain than the running deployment.
 - Configuration is validated per request. Invalid values are reported through `/api/health` as `configErrors` and block payment creation instead of silently falling back to a real-money network or a default price.
+- The RPC chain probe behind `/api/health` is cached for ten seconds, so frequent platform probes do not hammer the RPC provider.
 - A document must produce at least one validated line item before an order or payment request is created. The draft remains hidden until payment verification succeeds.
 - Order creation enforces a hard request-body ceiling by counting streamed bytes, so chunked uploads without a `Content-Length` header cannot bypass the 8 MB limit.
 - PDFs are inspected for page count before text extraction and rejected above 50 pages.
