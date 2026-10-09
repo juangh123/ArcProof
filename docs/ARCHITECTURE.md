@@ -58,7 +58,7 @@ Shared fulfillment pipeline used by the private process route and the public res
 
 `src/lib/server/extract.ts`
 
-PDF/text ingestion, optional model extraction, deterministic fallback, pre-payment validation, and output validation.
+PDF/text ingestion, optional model extraction, pre-payment validation, and output validation. The deterministic quotation parser lives in `src/lib/server/quote-parser.ts` and is re-exported here for existing callers.
 
 `src/lib/api/order-client.ts`
 
