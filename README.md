@@ -110,7 +110,7 @@ CI and the production Docker image leave standalone output enabled.
 | `ARC_NETWORK` | Yes | `mainnet` or `testnet` |
 | `ARC_PAYMENT_MODE` | No | `live` or non-production `fixture` |
 | `ARC_RECIPIENT_ADDRESS` | Yes | Wallet receiving the USDC payment |
-| `ARC_RPC_URL` | No | Override the default Arc RPC endpoint |
+| `ARC_RPC_URL` | No | Server-side override for the default Arc RPC endpoint |
 | `ARC_EXPLORER_URL` | No | Override the default explorer |
 | `ARC_QUOTE_PRICE_USDC` | No | Fixed service price, default `0.10` |
 | `OPENAI_API_KEY` | No | Enables model extraction |
@@ -160,6 +160,7 @@ The Railway-generated HTTPS URL is sufficient for the live deployment link.
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm coverage
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
@@ -189,16 +190,21 @@ PUBLIC_BASE_URL=https://your-railway-domain \
 pnpm smoke verify <ORDER_ID> <TRANSACTION_HASH>
 ```
 
-The unit suite currently contains 54 passing tests and covers payment transaction uniqueness, pending-payment recovery, paid-draft release, pre-payment extraction rejection, failed-job retry, processing lease fencing, order expiry and retention, stale payment-target rejection, request rate limiting and memory bounds, upload-size preflight, file validation, wrong chain/Memo/recipient/amount cases, duplicate Arc event rejection, the two-event Arc USDC model, verification claim atomicity, quotation extraction, monetary consistency, price defaulting, empty-result handling, scanned-PDF detection, and CSV formula neutralization.
+The unit suite currently contains 81 passing tests and covers payment transaction uniqueness, pending-payment recovery, paid-draft release, pre-payment extraction rejection, failed-job retry, processing retry limits, processing lease fencing, order expiry and retention, stale payment-target rejection, cross-network verification rejection, configuration validation, request rate limiting and memory bounds, chunked-upload limits, upload-size preflight, file validation, PDF page pre-checks, public identifier entropy, wrong chain/Memo/recipient/amount cases, duplicate Arc event rejection, the two-event Arc USDC model, verification claim atomicity, RPC-layer verification outcomes (pending, wrong chain, RPC failure), the health probe, private and public order lookup, resume-processing outcomes, quotation extraction, monetary consistency, price defaulting, empty-result handling, scanned-PDF detection, pre-payment CSV withholding, and CSV formula neutralization.
+
+Coverage is enforced in CI over the server and API layers (`src/lib/**`, `src/app/api/**`) at 80% statements, 70% branches, 88% functions, and 80% lines; the browser surface is covered by the Playwright suite.
 
 The browser suite covers the complete sample flow and public receipt on desktop and a 390px mobile viewport.
 
 ## Privacy and limits
 
 - Uploaded source files are not stored.
+- The request body is capped at 8 MB plus multipart overhead, including chunked requests without a `Content-Length` header.
+- PDFs are rejected above 50 pages before text extraction starts.
 - Scanned or image-only PDFs are not OCRed; a text-based PDF or plain-text export is required.
 - Extracted source text is discarded after preflight validation; the validated draft is held server-side until payment or expiry.
-- Payment requests expire for new payments after seven days. Unpaid records are retained server-side for up to 30 days, while orders that reached verification are retained for manual resolution.
+- Payment requests expire for new payments after seven days; the window is enforced in the browser. A payment that already exists on Arc is still verified after the window and the order is retained for manual resolution, while unpaid or rejected records are purged after 30 days.
+- A failed fulfillment can be retried up to five times before it needs manual support.
 - The public proof page exposes payment facts and aggregate result metadata only.
 - The service does not provide custody, exchange, tax advice, or accounting services.
 - The first version uses one fixed price, one application instance, and EOA wallets only.

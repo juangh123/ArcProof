@@ -52,9 +52,21 @@ Validates the final transaction, Memo binding, nested transfer, recipient, amoun
 
 SQLite-backed order state, unique transaction binding, and idempotent processing claims.
 
+`src/lib/server/order-processing.ts`
+
+Shared fulfillment pipeline used by the private process route and the public resume route: processing claim, lease and retry-limit enforcement, extraction fallback, completion, and failure recording.
+
 `src/lib/server/extract.ts`
 
 PDF/text ingestion, optional model extraction, deterministic fallback, pre-payment validation, and output validation.
+
+`src/lib/api/order-client.ts`
+
+Browser-side order API client: create/read/verify/process requests, typed request errors, and the local storage handle used to resume an active order.
+
+`src/components/workbench.tsx`
+
+Workbench composition root. The order state machine lives in `src/components/use-workbench-order.ts`, the intake and result sections render from `src/components/workbench/intake-panel.tsx` and `src/components/workbench/result-panel.tsx`.
 
 ## Order state
 
@@ -74,11 +86,17 @@ awaiting_payment
 
 - A transaction hash has a database-level unique constraint across all orders.
 - Payment recording uses a conditional update, so the first verified transaction wins.
+- Verification refuses orders that were created for a different Arc network or chain than the running deployment.
+- Configuration is validated per request. Invalid values are reported through `/api/health` as `configErrors` and block payment creation instead of silently falling back to a real-money network or a default price.
 - A document must produce at least one validated line item before an order or payment request is created. The draft remains hidden until payment verification succeeds.
+- Order creation enforces a hard request-body ceiling by counting streamed bytes, so chunked uploads without a `Content-Length` header cannot bypass the 8 MB limit.
+- PDFs are inspected for page count before text extraction and rejected above 50 pages.
 - A failed processing job remains linked to its verified payment and can be retried without repaying.
+- Processing retries are capped at five attempts per order, after which the order needs manual support.
 - The browser stores the active order identifier and any pending transaction hash locally, so a reload can resume verification and processing without creating a second payment.
 - A public receipt exposes a resume-processing action for verified orders whose fulfillment was interrupted.
-- Payment requests expire for new payments after seven days. Unpaid and payment-rejected records are retained server-side for up to 30 days; orders that reached verification are never deleted automatically because a transaction may already exist on Arc.
+- Public receipt identifiers use eight random bytes so they cannot be guessed in bulk.
+- Payment requests expire for new payments after seven days; the browser enforces that window. The server still verifies a payment that already exists on Arc, then keeps the order for manual resolution. Unpaid and payment-rejected records are retained server-side for up to 30 days; orders that reached verification are never deleted automatically because a transaction may already exist on Arc.
 - Order creation is limited to ten requests per client in a ten-minute window per application instance. Verification and processing requests are rate limited per client as well.
 - A job that finds no line items is kept as a retryable failure instead of releasing an empty paid result.
 
