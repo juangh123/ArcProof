@@ -110,4 +110,37 @@ describe("health route", () => {
     expect(payload.ok).toBe(false);
     expect(payload.configErrors.join(" ")).toContain("ARC_QUOTE_PRICE_USDC");
   });
+
+  it("reports an explicit ARCPROOF_VERSION ahead of the platform commit", async () => {
+    mockClient.getChainId.mockResolvedValue(5_042);
+    process.env.ARCPROOF_VERSION = "deployed-revision";
+    process.env.RAILWAY_GIT_COMMIT_SHA = "platform-revision";
+
+    try {
+      const payload = await (await healthGet()).json();
+
+      expect(payload.version).toBe("deployed-revision");
+    } finally {
+      delete process.env.ARCPROOF_VERSION;
+      delete process.env.RAILWAY_GIT_COMMIT_SHA;
+    }
+  });
+
+  it("falls back to the platform commit and then to development", async () => {
+    mockClient.getChainId.mockResolvedValue(5_042);
+    delete process.env.ARCPROOF_VERSION;
+    process.env.RAILWAY_GIT_COMMIT_SHA = "platform-revision";
+
+    try {
+      expect((await (await healthGet()).json()).version).toBe(
+        "platform-revision",
+      );
+
+      delete process.env.RAILWAY_GIT_COMMIT_SHA;
+      expect((await (await healthGet()).json()).version).toBe("development");
+    } finally {
+      delete process.env.RAILWAY_GIT_COMMIT_SHA;
+      delete process.env.ARCPROOF_VERSION;
+    }
+  });
 });
