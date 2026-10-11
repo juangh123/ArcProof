@@ -39,5 +39,5 @@ event; verification uses the signed `Memo.memo` call plus the ERC-20 mirror.
 - `pnpm build`
 - `pnpm test:e2e`
 
-The current suite contains 54 unit/integration tests and 8 browser tests
+The current suite contains 102 unit/integration tests and 8 browser tests
 across desktop and a 390px mobile viewport.

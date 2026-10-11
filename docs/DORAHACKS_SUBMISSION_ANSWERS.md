@@ -26,8 +26,9 @@ https://dorahacks.io/hackathon/arc-microgrants/build
     project?:** No.
 12. **Anything else we should see?:** Public receipt:
     https://arcproof-production.up.railway.app/proof/AP-AC247758 · Repository
-    contains 54 unit/integration tests and 8 Playwright tests across desktop
-    and a 390px mobile viewport · CI is green on `master` · `pnpm preflight`
+    contains 102 unit/integration tests and 8 Playwright tests across desktop
+    and a 390px mobile viewport · CI is green on `master` with enforced coverage
+    thresholds and a production-dependency audit · `pnpm preflight`
    and the mainnet smoke-verification path are documented in the repository ·
    CSV: https://arcproof-production.up.railway.app/api/proof/AP-AC247758/csv ·
    the published proof is a self-transfer self-test (same EOA as payer and

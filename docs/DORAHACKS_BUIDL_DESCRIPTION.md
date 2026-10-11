@@ -57,11 +57,14 @@ fulfillment from its own transaction-success state.
 ## Engineering quality
 
 - Next.js 16, React 19, TypeScript, Node.js 24, SQLite, viem, and unpdf.
-- 54 unit/integration tests and 8 Playwright tests across desktop and a 390px
-  mobile viewport.
-- Green CI pipeline with lint, typecheck, unit tests, production build, Docker
-  build, and browser tests.
+- 102 unit/integration tests and 8 Playwright browser tests across desktop and
+  a 390px mobile viewport.
+- Green CI pipeline with lint, typecheck, coverage-gated unit tests, a
+  production-dependency audit, production build, Docker build, and browser
+  tests.
 - Production Docker image deployed on Railway with a persistent SQLite volume.
+- Verified online SQLite backups with a daily scheduler, and an opt-in retention
+  policy that redacts old results while keeping payment evidence.
 - Pre-payment document validation, server-side draft storage, pending-payment
   locking, seven-day payment expiry, bounded rate limiting, and upload-size
   preflight.

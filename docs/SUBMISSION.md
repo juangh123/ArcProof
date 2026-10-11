@@ -72,8 +72,9 @@ This published payment is a self-test: the same EOA paid and received, which is 
 
 The repository contains:
 
-- 54 passing unit and integration tests.
+- 102 passing unit and integration tests.
 - 8 passing Playwright browser tests across desktop and a 390px mobile viewport.
+- CI enforces coverage thresholds over the server and API layers and runs `pnpm audit --prod` against production dependencies.
 - A production build verified in CI and in the Railway Docker build.
 - `pnpm preflight` checks for RPC chain ID, deployed USDC and Memo contracts, recipient balance, public health, database writability, live payment mode, and the published service price.
 - `pnpm smoke verify` checks a real transaction through the deployed verification and processing endpoints.
@@ -92,6 +93,8 @@ The public receipt records the final transaction, payer, recipient, Memo ID, blo
 - Orders from a previous network or receiving address are rejected before the wallet is asked to sign, preventing a stale order from paying the wrong target.
 - Public receipt recovery now uses the public order ID and a dedicated resume endpoint instead of exposing the internal order UUID.
 - The optional extraction model default moved from the deprecated `gpt-5-mini` to the documented `gpt-5.6-terra`.
+- Completed data is protected by verified online backups: a token-protected `POST /api/admin/backup` endpoint takes integrity-checked `VACUUM INTO` snapshots (newest seven kept), called daily by a scheduled GitHub Actions workflow.
+- An opt-in retention policy can redact the stored quotation payload of completed orders after a configurable window while all payment evidence stays intact; redacted CSV exports return `410 Gone`, and published receipts can be exempted.
 
 ## Why it is worth continuing
 
